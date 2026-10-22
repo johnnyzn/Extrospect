@@ -32,7 +32,7 @@ dependencies = [
     "jsbeautifier>=1.15",
     "regex>=2024.5.15",
     "tldextract>=5.1",
-    "mcp>=1.9",
+    "mcp>=2.0",
 ]
 
 [project.optional-dependencies]

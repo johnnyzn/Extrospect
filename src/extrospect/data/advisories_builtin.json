@@ -1,0 +1,287 @@
+{
+ "_comment": "Curated subset of common JavaScript library CVEs (affected functions + exploitation conditions). Online lookups (GitHub Advisory Database) complement it.",
+ "CVE-2020-11022": {
+  "library": "jquery",
+  "fixed_in": "3.5.0",
+  "summary": "Passing HTML from untrusted sources to jQuery DOM manipulation methods may execute untrusted code, even after sanitizing it (htmlPrefilter regex).",
+  "affected_functions": [
+   "jQuery.htmlPrefilter",
+   ".html()",
+   ".append()",
+   ".prepend()",
+   ".after()",
+   ".before()",
+   ".replaceWith()",
+   ".wrap()"
+  ],
+  "conditions": "Attacker-influenced HTML string reaches a jQuery DOM manipulation method."
+ },
+ "CVE-2020-11023": {
+  "library": "jquery",
+  "fixed_in": "3.5.0",
+  "summary": "Passing HTML containing <option> elements from untrusted sources to jQuery DOM manipulation methods may execute untrusted code.",
+  "affected_functions": [
+   ".html()",
+   ".append()",
+   ".prepend()",
+   ".after()",
+   ".before()",
+   ".replaceWith()"
+  ],
+  "conditions": "Attacker-influenced HTML containing <option> elements reaches a DOM manipulation method."
+ },
+ "CVE-2019-11358": {
+  "library": "jquery",
+  "fixed_in": "3.4.0",
+  "summary": "jQuery.extend(true, {}, ...) deep merge of an untrusted object can pollute Object.prototype via __proto__.",
+  "affected_functions": [
+   "jQuery.extend",
+   "$.extend"
+  ],
+  "conditions": "Deep extend (first argument true) with an object parsed from untrusted input."
+ },
+ "CVE-2015-9251": {
+  "library": "jquery",
+  "fixed_in": "3.0.0",
+  "summary": "Cross-domain Ajax requests without a dataType execute text/javascript responses.",
+  "affected_functions": [
+   "jQuery.ajax",
+   "$.ajax",
+   "$.get",
+   "$.post",
+   "$.getJSON"
+  ],
+  "conditions": "Ajax request to an attacker-controlled cross-origin URL without an explicit dataType."
+ },
+ "CVE-2012-6708": {
+  "library": "jquery",
+  "fixed_in": "1.9.0",
+  "summary": "jQuery(strInput) can interpret a selector string as HTML even when it does not start with '<', leading to XSS.",
+  "affected_functions": [
+   "jQuery()",
+   "$()"
+  ],
+  "conditions": "An attacker-influenced string is passed to $() as a selector."
+ },
+ "CVE-2011-4969": {
+  "library": "jquery",
+  "fixed_in": "1.6.3",
+  "summary": "XSS when location.hash is used as a selector.",
+  "affected_functions": [
+   "$(location.hash)",
+   "jQuery(location.hash)"
+  ],
+  "conditions": "Code passes location.hash (attacker-controlled) to $()."
+ },
+ "CVE-2020-7656": {
+  "library": "jquery",
+  "fixed_in": "1.9.0",
+  "summary": "The load() method fails to strip <script> tags containing whitespace in the closing tag, so loaded HTML can execute scripts.",
+  "affected_functions": [
+   ".load()"
+  ],
+  "conditions": ".load() fetches attacker-influenced HTML."
+ },
+ "CVE-2021-41182": {
+  "library": "jquery-ui",
+  "fixed_in": "1.13.0",
+  "summary": "XSS in the altField option of the Datepicker widget.",
+  "affected_functions": [
+   ".datepicker()"
+  ],
+  "conditions": "The altField option is set from untrusted input."
+ },
+ "CVE-2021-41183": {
+  "library": "jquery-ui",
+  "fixed_in": "1.13.0",
+  "summary": "XSS in the *Text options (e.g. closeText, currentText) of the Datepicker widget.",
+  "affected_functions": [
+   ".datepicker()"
+  ],
+  "conditions": "Datepicker *Text options come from untrusted input."
+ },
+ "CVE-2021-41184": {
+  "library": "jquery-ui",
+  "fixed_in": "1.13.0",
+  "summary": "XSS in the 'of' option of the .position() utility.",
+  "affected_functions": [
+   ".position()"
+  ],
+  "conditions": "The 'of' option is set from untrusted input."
+ },
+ "CVE-2022-31160": {
+  "library": "jquery-ui",
+  "fixed_in": "1.13.2",
+  "summary": "Initializing a checkboxradio widget on an input enclosed in a label makes the label's HTML be re-parsed, which can execute scripts.",
+  "affected_functions": [
+   ".checkboxradio()"
+  ],
+  "conditions": "Label contents include attacker-influenced HTML."
+ },
+ "CVE-2016-7103": {
+  "library": "jquery-ui",
+  "fixed_in": "1.12.0",
+  "summary": "XSS in the closeText option of the Dialog widget.",
+  "affected_functions": [
+   ".dialog()"
+  ],
+  "conditions": "closeText is set from untrusted input."
+ },
+ "CVE-2019-10744": {
+  "library": "lodash",
+  "fixed_in": "4.17.12",
+  "summary": "Prototype pollution in defaultsDeep with constructor payloads.",
+  "affected_functions": [
+   "_.defaultsDeep",
+   "defaultsDeep"
+  ],
+  "conditions": "defaultsDeep merges an object parsed from untrusted input."
+ },
+ "CVE-2020-8203": {
+  "library": "lodash",
+  "fixed_in": "4.17.20",
+  "summary": "Prototype pollution in zipObjectDeep.",
+  "affected_functions": [
+   "_.zipObjectDeep",
+   "zipObjectDeep"
+  ],
+  "conditions": "zipObjectDeep is called with untrusted property paths."
+ },
+ "CVE-2021-23337": {
+  "library": "lodash",
+  "fixed_in": "4.17.21",
+  "summary": "Command/code injection through the 'variable' option of _.template.",
+  "affected_functions": [
+   "_.template",
+   "template"
+  ],
+  "conditions": "_.template options (variable) are attacker-controlled."
+ },
+ "CVE-2018-16487": {
+  "library": "lodash",
+  "fixed_in": "4.17.11",
+  "summary": "Prototype pollution in merge, mergeWith and defaultsDeep.",
+  "affected_functions": [
+   "_.merge",
+   "_.mergeWith",
+   "_.defaultsDeep"
+  ],
+  "conditions": "Deep merge of an object parsed from untrusted input."
+ },
+ "CVE-2018-3721": {
+  "library": "lodash",
+  "fixed_in": "4.17.5",
+  "summary": "Prototype pollution in merge, mergeWith and defaultsDeep via __proto__.",
+  "affected_functions": [
+   "_.merge",
+   "_.mergeWith",
+   "_.defaultsDeep"
+  ],
+  "conditions": "Deep merge of an object parsed from untrusted input."
+ },
+ "CVE-2021-23358": {
+  "library": "underscore",
+  "fixed_in": "1.12.1",
+  "summary": "Arbitrary code execution through the 'variable' setting of _.template.",
+  "affected_functions": [
+   "_.template"
+  ],
+  "conditions": "Template settings are attacker-controlled."
+ },
+ "CVE-2019-8331": {
+  "library": "bootstrap",
+  "fixed_in": "3.4.1 / 4.3.1",
+  "summary": "XSS in the tooltip/popover data-template, data-content and data-title options.",
+  "affected_functions": [
+   ".tooltip()",
+   ".popover()",
+   "data-template"
+  ],
+  "conditions": "Tooltip/popover options come from untrusted input."
+ },
+ "CVE-2018-14040": {
+  "library": "bootstrap",
+  "fixed_in": "3.4.0 / 4.1.2",
+  "summary": "XSS in the collapse data-parent attribute.",
+  "affected_functions": [
+   ".collapse()",
+   "data-parent"
+  ],
+  "conditions": "data-parent is attacker-controlled."
+ },
+ "CVE-2018-14041": {
+  "library": "bootstrap",
+  "fixed_in": "4.1.2",
+  "summary": "XSS in the scrollspy data-target attribute.",
+  "affected_functions": [
+   ".scrollspy()",
+   "data-target"
+  ],
+  "conditions": "data-target is attacker-controlled."
+ },
+ "CVE-2018-14042": {
+  "library": "bootstrap",
+  "fixed_in": "3.4.0 / 4.1.2",
+  "summary": "XSS in the tooltip data-container property.",
+  "affected_functions": [
+   ".tooltip()",
+   "data-container"
+  ],
+  "conditions": "data-container is attacker-controlled."
+ },
+ "CVE-2019-19919": {
+  "library": "handlebars",
+  "fixed_in": "4.3.0",
+  "summary": "Prototype pollution through templates that can lead to remote code execution.",
+  "affected_functions": [
+   "Handlebars.compile",
+   "Handlebars.template"
+  ],
+  "conditions": "Templates are compiled from untrusted input."
+ },
+ "CVE-2020-26870": {
+  "library": "dompurify",
+  "fixed_in": "2.0.17",
+  "summary": "Mutation XSS bypass of the sanitizer.",
+  "affected_functions": [
+   "DOMPurify.sanitize"
+  ],
+  "conditions": "Sanitized output of attacker-controlled HTML is inserted into the DOM."
+ },
+ "CVE-2022-31129": {
+  "library": "moment",
+  "fixed_in": "2.29.4",
+  "summary": "Inefficient RFC 2822 date parsing (ReDoS) for long user-supplied strings.",
+  "affected_functions": [
+   "moment(string)"
+  ],
+  "conditions": "Very long attacker-controlled strings are parsed as dates."
+ },
+ "CVE-2022-24785": {
+  "library": "moment",
+  "fixed_in": "2.29.2",
+  "summary": "Path traversal in locale loading when the locale name comes from user input (mainly server-side).",
+  "affected_functions": [
+   "moment.locale"
+  ],
+  "conditions": "Locale name is attacker-controlled."
+ },
+ "CVE-2021-3749": {
+  "library": "axios",
+  "fixed_in": "0.21.2",
+  "summary": "Inefficient regular expression (ReDoS) in the trim helper.",
+  "affected_functions": [
+   "axios utils.trim"
+  ],
+  "conditions": "Very long attacker-controlled header/body strings."
+ },
+ "CVE-2023-45857": {
+  "library": "axios",
+  "fixed_in": "1.6.0",
+  "summary": "The XSRF-TOKEN cookie value is sent in the X-XSRF-TOKEN header to any host, leaking it to third parties.",
+  "affected_functions": [
+   "axios requests with withCredentials"
+  ],
+  "conditions": "Requests to third-party hosts from a context that holds an XSRF-TOKEN cookie."
+ }
+}

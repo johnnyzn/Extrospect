@@ -904,7 +904,7 @@ requires-dist = [
     { name = "lancedb", marker = "extra == 'rag'", specifier = ">=0.13" },
     { name = "lightgbm", marker = "extra == 'ml'", specifier = ">=4.3" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.60" },
-    { name = "mcp", specifier = ">=1.9" },
+    { name = "mcp", specifier = ">=2.0" },
     { name = "numpy", marker = "extra == 'ml'", specifier = ">=1.26" },
     { name = "numpy", marker = "extra == 'rag'", specifier = ">=1.26" },
     { name = "platformdirs", specifier = ">=4.2" },
