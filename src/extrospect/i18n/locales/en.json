@@ -355,5 +355,6 @@
   "mcp.not_found": "Extension {ext_id} was not found locally. Pass allow_download=true to fetch it from the Chrome Web Store.",
   "mcp.no_session": "No analysis session for {ext_id}. Call quick_scan first.",
   "mcp.engine_unavailable": "full_analyze needs Engine mode (pip install 'extrospect[llm]' and an API key such as ANTHROPIC_API_KEY): {error}",
+  "mcp.listing_not_found": "{ext_id} was not found on the Chrome Web Store (unpacked, unlisted or removed). Call quick_scan for a summary based on its manifest.",
   "mcp.unknown_slice": "Unknown slice id {slice_id}."
 }

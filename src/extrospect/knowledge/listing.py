@@ -215,6 +215,8 @@ def get_listing(
     if not refresh:
         cached = ctx.cache.get_kv("listing", ext_id)
         if cached:
+            if cached.get("not_found"):
+                return None
             info = ListingInfo.model_validate(cached)
             info.source = "cache"
             return info
@@ -225,11 +227,17 @@ def get_listing(
         rate_key="chrome-webstore",
         per_second=ctx.settings.network.webstore_requests_per_s,
     )
-    if response.status_code == 404:
-        ctx.cache.put_kv("listing", ext_id, None, ttl_s=24 * 3600)
+    # Unknown ids (unpacked, unlisted or removed extensions) are redirected to the store's
+    # home page with HTTP 200 - that page must never be parsed as this extension's listing.
+    final_url = str(response.url)
+    if response.status_code == 404 or "/detail/" not in final_url or ext_id not in final_url:
+        ctx.cache.put_kv("listing", ext_id, {"not_found": True}, ttl_s=24 * 3600)
         return None
     response.raise_for_status()
     info = parse_listing_html(response.text, ext_id)
+    if not info.name or info.name == "Chrome Web Store":
+        ctx.cache.put_kv("listing", ext_id, {"not_found": True}, ttl_s=24 * 3600)
+        return None
     if client is not None:
         with contextlib.suppress(Exception):
             info = extract_with_llm(info, client, ctx.language)

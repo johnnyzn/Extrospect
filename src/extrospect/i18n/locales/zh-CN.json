@@ -355,5 +355,6 @@
   "mcp.not_found": "本机没有找到扩展 {ext_id}。传入 allow_download=true 可从 Chrome 应用商店下载。",
   "mcp.no_session": "{ext_id} 还没有分析会话，请先调用 quick_scan。",
   "mcp.engine_unavailable": "full_analyze 需要 Engine 模式（pip install 'extrospect[llm]'，并设置 ANTHROPIC_API_KEY 等 API key）：{error}",
+  "mcp.listing_not_found": "在 Chrome 应用商店里找不到 {ext_id}（可能是手动加载、未上架或已下架的扩展）。请先调用 quick_scan，可以得到基于 manifest 的摘要。",
   "mcp.unknown_slice": "未知的切片 ID {slice_id}。"
 }

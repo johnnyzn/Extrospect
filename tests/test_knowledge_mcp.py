@@ -296,3 +296,75 @@ def test_mcp_main_parses_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
         "ran": True,
     }
     assert os.environ.get("EXTROSPECT_OFFLINE") == "1"
+
+
+STORE_HOME_HTML = """<html><head><meta property="og:title" content="Chrome Web Store">
+<meta name="description" content="Add new features to your browser and personalize your browsing experience.">
+</head><body>Discover extensions</body></html>"""
+
+
+def test_unknown_ids_redirected_to_store_home_are_not_listings(ctx) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if "/detail/" in str(request.url):
+            return httpx.Response(
+                302, headers={"location": "https://chromewebstore.google.com/?hl=en"}
+            )
+        return httpx.Response(200, text=STORE_HOME_HTML)
+
+    ctx.settings.network.offline = False
+    ctx.http = HttpClient(ctx.settings.network, transport=httpx.MockTransport(handler))
+    assert get_listing("b" * 32, ctx) is None
+    assert get_listing("b" * 32, ctx) is None  # negative result cached
+    assert len([c for c in calls if "/detail/" in c]) == 1
+
+
+def test_parallel_intel_searches(ctx) -> None:
+    import threading
+
+    errors: list[Exception] = []
+
+    def search() -> None:
+        try:
+            assert search_intel(
+                "chrome.cookies.getAll({}).then(c => fetch(u, {method: 'POST'}))", ctx, k=2
+            )
+        except Exception as exc:  # pragma: no cover - the assertion below reports it
+            errors.append(exc)
+
+    threads = [threading.Thread(target=search) for _ in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert not errors
+
+
+def test_mcp_listing_without_scan(mcp_server: Any) -> None:
+    sessions = mcp_server._extrospect_sessions
+    ctx = sessions.ctx
+    listed, unlisted = "a" * 32, "b" * 32
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if listed in str(request.url):
+            return httpx.Response(200, text=LISTING_HTML)
+        if "/detail/" in str(request.url):
+            return httpx.Response(302, headers={"location": "https://chromewebstore.google.com/"})
+        return httpx.Response(200, text=STORE_HOME_HTML)
+
+    ctx.settings.network.offline = False
+    ctx.http = HttpClient(ctx.settings.network, transport=httpx.MockTransport(handler))
+    found = call(mcp_server, "retrieve_listing", {"ext_id": listed})
+    assert found["name"] == "Lingvo Translate" and found["first_party_domains"] == [
+        "lingvo-translate.example"
+    ]
+    missing = call(mcp_server, "retrieve_listing", {"ext_id": unlisted})
+    assert "error" in missing and unlisted in missing["error"]
+    # A scanned unpacked extension falls back to its manifest and says so.
+    scanned = "c" * 32
+    call(mcp_server, "quick_scan", {"ext_id": scanned})
+    manifest_only = call(mcp_server, "retrieve_listing", {"ext_id": scanned})
+    assert manifest_only["source"] == "manifest" and "store_status" in manifest_only
+    assert manifest_only["name"] == "Shopping Helper"

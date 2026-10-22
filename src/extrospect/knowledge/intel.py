@@ -11,6 +11,7 @@ Sources:
 from __future__ import annotations
 
 import json
+import threading
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -57,9 +58,17 @@ def _index(ctx: Context, entries: list[dict[str, Any]]) -> int:
     return store.add(COLLECTION, embedder.name, items)
 
 
+_BUILTIN_LOCK = threading.Lock()
+
+
 def ensure_builtin(ctx: Context) -> None:
     if not ctx.settings.knowledge.use_builtin_intel:
         return
+    with _BUILTIN_LOCK:  # parallel first searches must not index the corpus twice
+        _ensure_builtin(ctx)
+
+
+def _ensure_builtin(ctx: Context) -> None:
     embedder = get_embedder(ctx.settings.knowledge.embedding_model)
     marker = ctx.cache.get_kv("intel-builtin", embedder.name)
     if marker == BUILTIN_VERSION and open_store(ctx.settings).count(COLLECTION, embedder.name) > 0:

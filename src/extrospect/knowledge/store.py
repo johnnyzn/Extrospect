@@ -200,11 +200,17 @@ class LanceStore(VectorStore):
         with self._lock:
             table = self._table(name)
             if table is None:
-                self.db.create_table(name, data=rows)
-            else:
-                table.merge_insert(
-                    "id"
-                ).when_matched_update_all().when_not_matched_insert_all().execute(rows)
+                try:
+                    self.db.create_table(name, data=rows)
+                    return len(rows)
+                except Exception:
+                    # Created concurrently by another instance/process: upsert instead.
+                    table = self._table(name)
+                    if table is None:
+                        raise
+            table.merge_insert(
+                "id"
+            ).when_matched_update_all().when_not_matched_insert_all().execute(rows)
         return len(rows)
 
     def search(self, collection: str, embedder: str, vector: list[float], k: int) -> list[Hit]:
@@ -245,9 +251,15 @@ class LanceStore(VectorStore):
 
 
 _STORES: dict[str, VectorStore] = {}
+_STORES_LOCK = threading.Lock()
 
 
 def open_store(settings: Settings) -> VectorStore:
+    with _STORES_LOCK:  # MCP tools run in worker threads: exactly one store per directory
+        return _open_store(settings)
+
+
+def _open_store(settings: Settings) -> VectorStore:
     directory = settings.paths.knowledge_dir
     backend = settings.knowledge.vector_backend
     key = f"{directory}|{backend}"
