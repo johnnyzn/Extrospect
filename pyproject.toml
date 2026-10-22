@@ -3,6 +3,8 @@ name = "extrospect"
 version = "0.1.0"
 description = "Local browser-extension risk analysis engine with code evidence, exposed as a CLI and an MCP server."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 authors = [{ name = "johnnyzn" }]
 keywords = ["browser-extension", "chrome", "security", "malware", "mcp", "llm", "static-analysis"]
@@ -66,14 +68,14 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/extrospect", "src/extrospect_mcp"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/", "tests/", "eval/", "docs/", "README.md", "README.zh-CN.md", "pyproject.toml"]
+include = ["src/", "tests/", "eval/", "docs/", "README.md", "README.zh-CN.md", "LICENSE", "NOTICE", "pyproject.toml"]
 
 # --------------------------------------------------------------------------- tools
 

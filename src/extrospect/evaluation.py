@@ -94,7 +94,7 @@ def load_ablations(path: Path) -> list[ConfigSpec]:
     import yaml
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    configs = data.get("configs", data)
+    configs: dict[str, Any] = data.get("configs", data) or {}
     return [
         ConfigSpec.model_validate({"name": name, **(spec or {})}) for name, spec in configs.items()
     ]

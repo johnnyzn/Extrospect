@@ -40,3 +40,16 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --extra eval --extra rag
       - run: uv run pytest --cov --cov-report=term-missing:skip-covered
+
+  eval-smoke:
+    # Zero-token smoke test of the evaluation harness on the fixture extensions:
+    # the static configuration for real, and the LLM configurations with the fake model.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra eval
+      - run: uv run python eval/run_eval.py --dataset eval/datasets/fixtures.jsonl --configs rules --offline --no-write
+      - run: uv run python eval/run_eval.py --dataset eval/datasets/fixtures.jsonl --configs llm,rag_all,flat_big_model --fake-llm --offline --no-write

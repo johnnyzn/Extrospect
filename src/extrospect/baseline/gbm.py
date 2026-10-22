@@ -9,6 +9,7 @@ when no model exists (the rule baseline is used instead).
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
     from extrospect.static.analyzer import StaticResult
 
 MODEL_FILE = "gbm.txt"
+# LightGBM rejects JSON special characters (":" in "perm:tabs") in feature names.
+LGB_FEATURE_NAMES = [re.sub(r"[^A-Za-z0-9_]", "_", name) for name in FEATURE_NAMES]
 META_FILE = "gbm.meta.json"
 DEFAULT_PARAMS: dict[str, Any] = {
     "objective": "binary",
@@ -74,10 +77,12 @@ def train(
             if len(set(y[train_idx])) < 2 or len(set(y[test_idx])) < 2:
                 continue
             booster = lgb.train(
-                params, lgb.Dataset(x[train_idx], y[train_idx], feature_name=FEATURE_NAMES), rounds
+                params,
+                lgb.Dataset(x[train_idx], y[train_idx], feature_name=LGB_FEATURE_NAMES),
+                rounds,
             )
             scores.append(float(roc_auc_score(y[test_idx], booster.predict(x[test_idx]))))
-    booster = lgb.train(params, lgb.Dataset(x, y, feature_name=FEATURE_NAMES), rounds)
+    booster = lgb.train(params, lgb.Dataset(x, y, feature_name=LGB_FEATURE_NAMES), rounds)
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / MODEL_FILE
     booster.save_model(str(path))
