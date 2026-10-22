@@ -88,7 +88,10 @@ def _fence(code: str) -> str:
 # --------------------------------------------------------------------------- markdown
 
 
-def render_markdown(report: Report, lang: str | None = None) -> str:
+def render_markdown(
+    report: Report, lang: str | None = None, redact_injections: bool = False
+) -> str:
+    """Markdown report. ``redact_injections`` hides text aimed at AI reviewers (for MCP clients)."""
     L = lang or report.language
     m = report.manifest
     out: list[str] = []
@@ -206,9 +209,14 @@ def render_markdown(report: Report, lang: str | None = None) -> str:
         )
         out.append("|---|---|---|---|---|")
         for sink in report.top_sinks[:25]:
+            snippet = (
+                "[redacted]"
+                if redact_injections and sink.kind == "prompt_injection"
+                else one_line(sink.snippet, 90)
+            )
             out.append(
                 f"| {sink.weight:.2f} | {_md_escape(sink_label(sink.kind, L))} | `{sink.file}:{sink.line}` | "
-                f"`{_md_escape(one_line(sink.api, 60))}` | `{_md_escape(one_line(sink.snippet, 90))}` |"
+                f"`{_md_escape(one_line(sink.api, 60))}` | `{_md_escape(snippet)}` |"
             )
         if len(report.top_sinks) > 25:
             out.append("")
@@ -273,9 +281,12 @@ def render_markdown(report: Report, lang: str | None = None) -> str:
         out.append(f"## {t('report.injection_attempts', L)}")
         out.append("")
         for attempt in report.injection_attempts:
-            out.append(
-                f"- `{attempt.file}:{attempt.line}` ({attempt.pattern}): “{one_line(attempt.text, 160)}”"
+            text = (
+                f"[redacted: {len(attempt.text)} chars]"
+                if redact_injections
+                else f"“{one_line(attempt.text, 160)}”"
             )
+            out.append(f"- `{attempt.file}:{attempt.line}` ({attempt.pattern}): {text}")
         out.append("")
 
     # ---- libraries
