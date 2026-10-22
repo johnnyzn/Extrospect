@@ -76,15 +76,15 @@ def rule_score(
     if "remote_code" in kinds:
         signals.append(("remote_code", 0.5))
     if "cookie_tamper" in kinds and "link_rewrite" in kinds:
-        signals.append(("affiliate_fraud", 0.4))
+        signals.append(("affiliate_fraud", 0.2))
     elif "link_rewrite" in kinds:
-        signals.append(("link_rewrite", 0.15))
+        signals.append(("link_rewrite", 0.1))
     if obfuscation >= 0.6 and kinds & {"network_exfil", "dynamic_code"}:
         signals.append(("obfuscated_network_code", 0.4))
     elif obfuscation >= 0.35:
         signals.append(("obfuscation", 0.15))
     if signals and "time_bomb" in kinds:
-        signals.append(("time_bomb", 0.25))
+        signals.append(("time_bomb", 0.15))
     if signals and "evasion_check" in kinds:
         signals.append(("evasion_check", 0.15))
     if {"CSP_UNSAFE_EVAL", "CSP_REMOTE_SCRIPT"} & set(capability.flags) and "dynamic_code" in kinds:

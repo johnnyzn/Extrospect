@@ -131,6 +131,33 @@ def format_js(text: str, tools: NodeTools, timeout: float) -> tuple[str, str]:
     return text, "none"
 
 
+PARALLEL_MIN_FILES = 6
+PARALLEL_MIN_BYTES = 1_500_000
+
+
+def _format_job(job: tuple[str, NodeTools, float]) -> tuple[str, str]:
+    text, tools, timeout = job
+    return format_js(text, tools, timeout)
+
+
+def format_many(texts: list[str], tools: NodeTools, timeout: float) -> list[tuple[str, str]]:
+    """Format several files, using worker processes for large batches."""
+    if len(texts) < PARALLEL_MIN_FILES and sum(map(len, texts)) < PARALLEL_MIN_BYTES:
+        return [format_js(t, tools, timeout) for t in texts]
+    import multiprocessing
+    import os
+    from concurrent.futures import ProcessPoolExecutor
+
+    workers = max(1, min(8, (os.cpu_count() or 2) - 1, len(texts)))
+    # "spawn" is safe even when the caller runs threads (the MCP server does).
+    context = multiprocessing.get_context("spawn")
+    try:
+        with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
+            return list(pool.map(_format_job, [(t, tools, timeout) for t in texts], chunksize=4))
+    except (OSError, RuntimeError):
+        return [format_js(t, tools, timeout) for t in texts]
+
+
 def needs_rewrite(text: str) -> tuple[bool, bool, bool]:
     """(minified, bundled, obfuscated)."""
     return is_minified(text), looks_bundled(text), looks_obfuscated(text)
@@ -140,6 +167,7 @@ __all__ = [
     "BUNDLE_MARKERS",
     "WebcrackResult",
     "format_js",
+    "format_many",
     "format_with_jsbeautifier",
     "format_with_prettier",
     "looks_bundled",

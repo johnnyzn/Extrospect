@@ -272,13 +272,26 @@ class ParsedJs:
     def function_at(self, line: int, column: int = 0) -> FunctionInfo | None:
         return self.innermost_function(self.offset_of(line, column))
 
+    _has_error: bool | None = None
+
     @property
     def root(self) -> Node:
+        if self.tree is None:
+            raise RuntimeError(f"syntax tree of {self.rel} was released")
         return self.tree.root_node
 
     @property
     def has_error(self) -> bool:
-        return bool(self.tree.root_node.has_error)
+        if self._has_error is None:
+            self._has_error = (
+                bool(self.tree.root_node.has_error) if self.tree is not None else False
+            )
+        return self._has_error
+
+    def release_tree(self) -> None:
+        """Drop the tree-sitter tree (large) once scanning and sanitising are done."""
+        _ = self.has_error
+        self.tree = None  # type: ignore[assignment]
 
     def innermost_function(self, byte_offset: int) -> FunctionInfo | None:
         idx = bisect.bisect_right(self._starts, byte_offset) - 1
@@ -304,46 +317,60 @@ _ALIAS_QUERY = "(variable_declarator name: (_) @name value: (_) @value)"
 _FUNCTION_QUERY = "\n".join(f"({kind}) @fn" for kind in sorted(FUNCTION_TYPES))
 
 
+MIN_ALIAS_LENGTH = 3
+BUILTIN_ALIAS_TARGETS = {"fetch", "eval", "Function", "XMLHttpRequest", "WebSocket", "atob"}
+
+
 def _collect_aliases(root: Node) -> dict[str, str]:
-    """``const c = chrome.cookies`` / ``const api = browser || chrome`` / ``const {cookies} = chrome``."""
-    aliases: dict[str, str] = {}
+    """``const c = chrome.cookies`` / ``const api = browser || chrome`` / ``const {cookies} = chrome``.
+
+    Aliases are scope-insensitive, so they are only trusted when unambiguous: the name is
+    declared exactly once in the file and is not a minifier-style short identifier
+    (``const t = Function`` in one scope must not turn every ``t(...)`` into ``Function``).
+    """
+    candidates: dict[str, str] = {}
+    declared: dict[str, int] = {}
     for _, match in QueryCursor(compiled_query(_ALIAS_QUERY)).matches(root):
         if not match.get("name") or not match.get("value"):
             continue
         name_node = match["name"][0]
         value = _strip_parens(match["value"][0])
         if name_node.type == "identifier":
+            name = node_text(name_node)
+            declared[name] = declared.get(name, 0) + 1
             target = None
             if value.type in {"identifier", "member_expression", "subscript_expression"}:
-                chain = normalize_api(member_chain(value))
-                if (chain and (chain == "chrome" or chain.startswith("chrome."))) or chain in {
-                    "fetch",
-                    "eval",
-                    "Function",
-                    "XMLHttpRequest",
-                    "WebSocket",
-                    "atob",
-                }:
+                chain = normalize_api(member_chain(value)) or ""
+                is_chrome = chain == "chrome" or chain.startswith("chrome.")
+                if is_chrome or (chain in BUILTIN_ALIAS_TARGETS and len(name) >= 4):
                     target = chain
             elif value.type in {"binary_expression", "ternary_expression"}:
                 text = node_text(value)
-                if "chrome" in text or "browser" in text:
+                if re.search(r"\b(chrome|browser)\b", text):
                     target = "chrome"
             if target:
-                aliases[node_text(name_node)] = target
+                candidates[name] = target
         elif name_node.type == "object_pattern":
             base = normalize_api(member_chain(value))
-            if base and (base == "chrome" or base.startswith("chrome.")):
-                for child in name_node.named_children:
-                    if child.type == "shorthand_property_identifier_pattern":
-                        prop = node_text(child)
-                        aliases[prop] = f"{base}.{prop}"
-                    elif child.type == "pair_pattern":
-                        key = child.child_by_field_name("key")
-                        val = child.child_by_field_name("value")
-                        if key is not None and val is not None and val.type == "identifier":
-                            aliases[node_text(val)] = f"{base}.{node_text(key)}"
-    return aliases
+            for child in name_node.named_children:
+                alias_name, prop = None, None
+                if child.type == "shorthand_property_identifier_pattern":
+                    alias_name = prop = node_text(child)
+                elif child.type == "pair_pattern":
+                    key = child.child_by_field_name("key")
+                    val = child.child_by_field_name("value")
+                    if key is not None and val is not None and val.type == "identifier":
+                        alias_name, prop = node_text(val), node_text(key)
+                if alias_name is None:
+                    continue
+                declared[alias_name] = declared.get(alias_name, 0) + 1
+                if base and (base == "chrome" or base.startswith("chrome.")):
+                    candidates[alias_name] = f"{base}.{prop}"
+    return {
+        name: target
+        for name, target in candidates.items()
+        if declared.get(name, 0) == 1 and len(name) >= MIN_ALIAS_LENGTH
+    }
 
 
 def parse_js(rel: str, text: str) -> ParsedJs:

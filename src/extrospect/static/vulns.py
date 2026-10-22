@@ -40,6 +40,8 @@ EPSS_TTL_S = 24 * 3600
 _VERSION_PLACEHOLDER = "§§version§§"
 _VERSION_RE = r"[0-9][0-9.a-z_\-]+"
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.I)
+CONTENT_HEAD = 100_000
+CONTENT_TAIL = 20_000
 
 
 @dataclass
@@ -251,6 +253,10 @@ class RetireMatcher:
 
     def _identify(self, rel: str, text: str, sha1: str) -> tuple[str, str] | None:
         name = rel.rsplit("/", 1)[-1]
+        if len(text) > CONTENT_HEAD + CONTENT_TAIL:
+            # Version banners and markers live near the start (or the end) of library files;
+            # scanning whole multi-megabyte bundles with ~400 regexes is too slow.
+            text = text[:CONTENT_HEAD] + "\n" + text[-CONTENT_TAIL:]
         for component, lib in self.repo.items():
             hashes = (lib.get("extractors") or {}).get("hashes") or {}
             if sha1 in hashes:

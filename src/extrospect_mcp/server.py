@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import logging
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -470,7 +471,11 @@ def main(argv: list[str] | None = None) -> None:
         overrides["network"] = {"offline": True}
     if args.lang:
         overrides["language"] = args.lang
-    build_server(overrides, allow_download=args.allow_download).run()
+    server = build_server(overrides, allow_download=args.allow_download)
+    # Keep the MCP client's log view readable: no per-request HTTP logs.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+    server.run()
 
 
 if __name__ == "__main__":

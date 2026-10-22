@@ -172,13 +172,29 @@ class SanitizedSource:
     comments_removed: int = 0
     strings_elided: int = 0
 
+    _lines: list[str] | None = field(default=None, repr=False)
+
     @property
     def lines(self) -> list[str]:
-        return split_lines(self.text)
+        if self._lines is None:
+            self._lines = split_lines(self.text)
+        return self._lines
+
+
+# Cheap pre-filter: every injection pattern contains one of these words.
+_TRIGGER_RE = regex.compile(
+    r"classif|label|benign|safe|harmless|legit|trusted|malicious|ignore|disregard|forget|override|"
+    r"instruction|prompt|auditor|reviewer|scanner|analyst|\bai\b|llm|gpt|claude|model|report|flag|"
+    r"判定|标记|视为|认定|评为|归类|识别|安全|良性|无害|合法|忽略|无视|忘记|忽视|指令|指示|报告|审计|审核|分析师|扫描器|"
+    r"無視|指示|無害|무시|ignora|ignorez|ignorier|игнорир",
+    regex.I,
+)
 
 
 def detect_injection(text: str) -> tuple[str, float] | None:
     """Return (pattern name, weight) of the strongest injection pattern in ``text``."""
+    if not _TRIGGER_RE.search(text[:20_000]):
+        return None
     best: tuple[str, float] | None = None
     for name, weight, pattern in INJECTION_PATTERNS:
         if pattern.search(text, timeout=0.5) and (best is None or weight > best[1]):

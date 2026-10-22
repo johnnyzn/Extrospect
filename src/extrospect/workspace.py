@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from extrospect.config import PIPELINE_VERSION, Settings
 from extrospect.models import CodeStats, ContextKind, LibraryInfo, Notice
-from extrospect.static.deobfuscate import format_js, needs_rewrite, run_webcrack
+from extrospect.static.deobfuscate import format_many, needs_rewrite, run_webcrack
 from extrospect.static.libstrip import decide, identify_library
 from extrospect.static.nodetools import NodeTools
 from extrospect.static.surface import AttackSurface
@@ -166,6 +166,8 @@ def prepare_workspace(
     retire_libraries = retire_libraries or {}
     cfg = settings.static
 
+    pending_format: list[tuple[str, str, ContextKind]] = []
+    webcrack_missing: list[str] = []
     for path in iter_files(ext_dir):
         rel = to_posix(path.relative_to(ext_dir))
         lower = rel.lower()
@@ -259,11 +261,11 @@ def prepare_workspace(
                     )
                 )
         elif cfg.deobfuscate and (bundled or obfuscated) and not tools.webcrack:
-            meta.notices.append(Notice(code="webcrack_missing", params={"file": rel}, level="info"))
+            webcrack_missing.append(rel)
         if transform == "none" and minified and cfg.format_minified:
-            text, transform = format_js(text, tools, settings.tools.timeout_s)
-            if transform != "none":
-                stats.formatted_files += 1
+            # Formatted in a batch below (in parallel for large extensions).
+            pending_format.append((rel, text, context))
+            continue
         written = _write(view_dir, rel, text)
         stats.analyzed_bytes += written
         stats.analyzed_lines += text.count("\n") + 1
@@ -275,6 +277,37 @@ def prepare_workspace(
             analyze=True,
             context=context,
             bytes=written,
+        )
+
+    # ---- format minified files (batched, parallel when worth it)
+    for (rel, original, context), (text, transform) in zip(
+        pending_format,
+        format_many([t for _, t, _ in pending_format], tools, settings.tools.timeout_s),
+        strict=True,
+    ):
+        if transform != "none":
+            stats.formatted_files += 1
+        else:
+            text = original
+        written = _write(view_dir, rel, text)
+        stats.analyzed_bytes += written
+        stats.analyzed_lines += text.count("\n") + 1
+        meta.files[rel] = ViewFile(
+            rel=rel,
+            source=rel,
+            kind="js",
+            transform=transform,
+            analyze=True,
+            context=context,
+            bytes=written,
+        )
+    if webcrack_missing:
+        meta.notices.append(
+            Notice(
+                code="webcrack_missing",
+                params={"file": webcrack_missing[0], "count": len(webcrack_missing)},
+                level="info",
+            )
         )
 
     # ---- inline scripts in HTML pages

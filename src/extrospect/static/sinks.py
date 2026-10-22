@@ -179,13 +179,31 @@ SENSITIVE_SOURCES = {
     "topsites_read",
 }
 EXFIL_KINDS = {"network_exfil", "native_messaging"}
-CONTROL_KINDS = {
-    "dynamic_code",
-    "script_injection",
-    "request_rewrite",
-    "html_injection",
-    "remote_code",
-}
+# html_injection is deliberately excluded: innerHTML fed by network data is common in benign UIs.
+CONTROL_KINDS = {"dynamic_code", "script_injection", "request_rewrite", "remote_code"}
+MIN_PATTERN_WEIGHT = 0.5  # literal eval / Function("return this") never anchor a pattern
+MAX_GROUP_FUNCTIONS = 40  # stop merging flow groups beyond this size (bundles, minified code)
+MIN_UNION_NAME = 4
+# Functions of well-known libraries inlined into bundles (Closure's goog.globalEval +
+# goog.loadFileSync_, jQuery internals...) never anchor a flow pattern on their own.
+LIBRARY_FUNCTION_PREFIXES = (
+    "goog.",
+    "jQuery.",
+    "jquery.",
+    "Sizzle",
+    "angular.",
+    "Ember.",
+    "Backbone.",
+    "Zone.",
+    "Polymer.",
+    "regeneratorRuntime",
+    "__webpack_require__",
+)
+
+
+def _library_scoped(sink: Sink) -> bool:
+    return bool(sink.function) and str(sink.function).startswith(LIBRARY_FUNCTION_PREFIXES)
+
 
 _PASSWORD_RE = re.compile(r"password|passwd|pwd|type\s*=\s*['\"]?password", re.I)
 _PAYMENT_RE = re.compile(r"cc-?num|card-?number|cardnumber|cvv|cvc|cc-?exp|credit.?card", re.I)
@@ -920,22 +938,30 @@ def _adjust_for_context(scan: FileScan) -> None:
 
 
 class _Groups:
-    """Union-find over function indexes (-1 = top-level code)."""
+    """Union-find over function indexes (-1 = top-level code) with group sizes."""
 
     def __init__(self) -> None:
         self.parent: dict[int, int] = {}
+        self.size: dict[int, int] = {}
 
     def find(self, x: int) -> int:
-        self.parent.setdefault(x, x)
+        if x not in self.parent:
+            self.parent[x] = x
+            self.size[x] = 1
         while self.parent[x] != x:
             self.parent[x] = self.parent[self.parent[x]]
             x = self.parent[x]
         return x
 
-    def union(self, a: int, b: int) -> None:
+    def union(self, a: int, b: int, limit: int | None = None) -> None:
         ra, rb = self.find(a), self.find(b)
-        if ra != rb:
-            self.parent[max(ra, rb)] = min(ra, rb)
+        if ra == rb:
+            return
+        if limit is not None and self.size[ra] + self.size[rb] > limit:
+            return
+        keep, drop = (ra, rb) if ra < rb else (rb, ra)
+        self.parent[drop] = keep
+        self.size[keep] += self.size[drop]
 
 
 def _flow_groups(
@@ -945,15 +971,18 @@ def _flow_groups(
 
     * a small nested function joins its parent (closures / inner callbacks);
     * a callback passed to a sink call joins the caller (``getAll({}, cb)``);
-    * a function joins the same-file functions it calls by name.
+    * a function joins the same-file functions it calls by a distinctive name.
+
+    Minified names (``t``, ``n``), names defined several times and oversized groups are
+    not merged, otherwise a bundle collapses into one giant "flow".
     """
     groups = _Groups()
     for fn in parsed.functions:
         groups.find(fn.index)
         if fn.parent is not None:
             parent = parsed.function_by_index(fn.parent)
-            if parent is not None and parent.lines <= 400:
-                groups.union(fn.index, parent.index)
+            if parent is not None and parent.lines <= 200:
+                groups.union(fn.index, parent.index, MAX_GROUP_FUNCTIONS)
     for sink in scan.sinks:
         meta = sink_meta.get(id(sink))
         if meta is None:
@@ -961,17 +990,19 @@ def _flow_groups(
         fn_index, start, end = meta
         for fn in parsed.functions:
             if start <= fn.start_byte and fn.end_byte <= end:
-                groups.union(fn.index, fn_index)
+                groups.union(fn.index, fn_index, MAX_GROUP_FUNCTIONS)
     by_name: dict[str, list[int]] = defaultdict(list)
     for fn in parsed.functions:
         if fn.name:
             by_name[fn.name].append(fn.index)
-    for fn_index, names in scan.calls_by_function.items():
+    for fn_index in sorted(scan.calls_by_function):
         if fn_index < 0:
             continue  # top-level code calls everything; merging it would join unrelated flows
-        for name in names:
-            for target in by_name.get(name, [])[:5]:
-                groups.union(fn_index, target)
+        for name in sorted(scan.calls_by_function[fn_index]):  # sorted: deterministic groups
+            targets = by_name.get(name, [])
+            if len(name) < MIN_UNION_NAME or len(targets) != 1:
+                continue  # minified or ambiguous name
+            groups.union(fn_index, targets[0], MAX_GROUP_FUNCTIONS)
     return groups
 
 
@@ -982,6 +1013,8 @@ def _add_patterns(
     groups = _flow_groups(scan, parsed, sink_meta)
     by_group: dict[int, list[Sink]] = defaultdict(list)
     for sink in scan.sinks:
+        if _library_scoped(sink):
+            continue
         meta = sink_meta.get(id(sink))
         fn_index = meta[0] if meta else -1
         by_group[groups.find(fn_index)].append(sink)
@@ -989,7 +1022,9 @@ def _add_patterns(
     for group_sinks in by_group.values():
         sources = [s for s in group_sinks if s.kind in SENSITIVE_SOURCES]
         exfils = [s for s in group_sinks if s.kind in EXFIL_KINDS]
-        controls = [s for s in group_sinks if s.kind in CONTROL_KINDS]
+        controls = [
+            s for s in group_sinks if s.kind in CONTROL_KINDS and s.weight >= MIN_PATTERN_WEIGHT
+        ]
         networks = [s for s in group_sinks if s.kind in {"network_exfil", "remote_channel"}]
         if sources and exfils:
             src = max(sources, key=lambda s: s.weight)

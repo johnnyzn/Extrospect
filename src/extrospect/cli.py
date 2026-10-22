@@ -518,6 +518,81 @@ def report_cmd(
         ctx.close()
 
 
+@app.command("history", help=t("cli.history_help"))
+def history_cmd(
+    limit: Annotated[int, typer.Option("--limit", help=t("cli.opt_limit"))] = 30,
+    mode: Annotated[str | None, typer.Option("--mode", help=t("cli.opt_mode"))] = None,
+    as_json: Annotated[bool, typer.Option("--json", help=t("cli.opt_json"))] = False,
+) -> None:
+    from extrospect.models import Report
+
+    ctx = _context()
+    try:
+        seen: set[tuple[str, str]] = set()
+        reports: list[Report] = []
+        for ext_id, _version, report_mode, _created in ctx.cache.list_reports(limit * 5):
+            if (mode and report_mode != mode) or (ext_id, report_mode) in seen:
+                continue
+            seen.add((ext_id, report_mode))
+            data = ctx.cache.latest_report(ext_id, report_mode)
+            if data:
+                reports.append(Report.model_validate(data))
+            if len(reports) >= limit:
+                break
+    finally:
+        ctx.close()
+    if as_json:
+        rows = []
+        for r in reports:
+            v = r.verdict
+            rows.append(
+                {
+                    "created": r.created_at.isoformat(),
+                    "mode": r.mode,
+                    "id": r.ref.id,
+                    "name": r.manifest.name,
+                    "score": r.score,
+                    "level": r.level,
+                    "verdict": v.label if v else None,
+                    "evidence_verified": sum(1 for e in v.evidence if e.verified) if v else 0,
+                    "needs_human_review": v.needs_human_review if v else None,
+                    "breakdown": r.breakdown.model_dump(exclude_none=True),
+                }
+            )
+        console.print_json(json.dumps(rows, ensure_ascii=False))
+        return
+    if not reports:
+        console.print(t("cli.no_history"))
+        return
+    table = Table(title=t("cli.history_title", count=len(reports)))
+    for col in (
+        "col_time",
+        "col_mode",
+        "col_name",
+        "col_id",
+        "col_score",
+        "col_level",
+        "col_verdict",
+        "col_evidence",
+    ):
+        table.add_column(t(f"cli.{col}"))
+    for r in reports:
+        v = r.verdict
+        evidence = f"{sum(1 for e in v.evidence if e.verified)}/{len(v.evidence)}" if v else "-"
+        verdict = "-" if v is None else v.label + (" ⚠" if v.needs_human_review else "")
+        table.add_row(
+            r.created_at.astimezone().strftime("%m-%d %H:%M"),
+            r.mode,
+            r.manifest.name,
+            r.ref.id,
+            str(r.score),
+            _level_text(r.level),
+            verdict,
+            evidence,
+        )
+    console.print(table)
+
+
 @app.command("download", help=t("cli.download_help"))
 def download_cmd(
     ext_id: Annotated[str, typer.Argument(help=t("cli.arg_ext_id"))],

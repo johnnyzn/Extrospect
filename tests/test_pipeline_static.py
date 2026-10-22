@@ -226,3 +226,36 @@ def test_cli_report_from_cache(cli, fixtures_dir: Path) -> None:
     result = runner.invoke(app, ["report", ext_id, "-f", "md"])
     assert result.exit_code == 0, result.output
     assert "Dark Mode Pro" in result.stdout
+
+
+def test_cli_history(cli, fixtures_dir: Path) -> None:
+    runner, app = cli
+    assert runner.invoke(app, ["history"]).exit_code == 0  # empty is fine
+    runner.invoke(app, ["scan", str(fixtures_dir / "mal_cookie_exfil"), "-f", "json"])
+    runner.invoke(app, ["scan", str(fixtures_dir / "benign_word_counter"), "-f", "json"])
+    result = runner.invoke(app, ["history", "--json"])
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.stdout)
+    assert {r["name"] for r in rows} == {"Dark Mode Pro", "Word Counter"}
+    assert all(r["mode"] == "static" for r in rows)
+    result = runner.invoke(app, ["--lang", "zh-CN", "history"])
+    assert result.exit_code == 0 and "最近的报告" in result.stdout
+
+
+def test_demo_profile_script(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib.util
+
+    from extrospect.acquire.local_profile import discover_extensions
+
+    script = Path(__file__).parent.parent / "scripts" / "make_demo_profile.py"
+    spec = importlib.util.spec_from_file_location("make_demo_profile", script)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    out = tmp_path / "demo"
+    assert module.main(["--out", str(out)]) == 0
+    monkeypatch.setenv("EXTROSPECT_BROWSER_ROOTS", f"chromium={out}")
+    found = discover_extensions(ui_language="en")
+    assert len(found) == 7
+    assert all("mal_" not in str(e.ref.path) and "inj_" not in str(e.ref.path) for e in found)
+    assert {e.install_location for e in found} == {"unpacked"}

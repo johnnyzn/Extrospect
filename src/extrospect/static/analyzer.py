@@ -134,6 +134,7 @@ def run_static(
             if cache:
                 cache.put_file(digest, cache_key, scan.to_dict())
         sanitized = sanitize_source(parsed, settings.static.long_string_threshold)
+        parsed.release_tree()
         bundle = FileBundle(parsed=parsed, scan=scan, sanitized=sanitized, context=view.context)
         if sanitized.injections:
             injections.extend(sanitized.injections)
