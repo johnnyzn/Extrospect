@@ -14,9 +14,14 @@ from typing import TYPE_CHECKING, Any
 from extrospect.baseline.rules import rule_score
 from extrospect.llm.client import BudgetExceeded, LlmBackend, LlmCallError, LLMClient
 from extrospect.llm.investigator import investigate
-from extrospect.llm.router import route_after_triage, route_before_triage
+from extrospect.llm.router import (
+    AfterTriage,
+    possibly_reachable,
+    route_after_triage,
+    route_before_triage,
+)
 from extrospect.llm.tools import ToolBox
-from extrospect.llm.triage import run_triage
+from extrospect.llm.triage import TriageOutcome, run_triage
 from extrospect.llm.verifier import apply_conflict_rule, run_verifier
 from extrospect.models import (
     ListingInfo,
@@ -102,7 +107,7 @@ def run_engine(
     if not first.run_llm:
         outcome.notices.append(Notice(code="llm_skipped_low_risk", level="info"))
         return outcome
-    client.ensure_available("triage")
+    client.ensure_available("investigator" if settings.router.flat else "triage")
     if first.truncated:
         outcome.notices.append(
             Notice(
@@ -112,21 +117,43 @@ def run_engine(
             )
         )
 
-    try:
-        triage = run_triage(static, first.slices, client, settings, ctx.cache, language)
-    except BudgetExceeded:
-        outcome.notices.append(
-            Notice(code="analysis_budget", params={"cost": f"{client.usage.cost_usd:.3f}"})
+    if settings.router.flat:
+        # Ablation control group: no small-model triage, the investigator gets every slice.
+        triage = TriageOutcome(
+            results=[
+                TriageResult(
+                    slice_id=s.slice_id,
+                    behavior="(not triaged)",
+                    suspicion=s.danger,
+                    category="unclear",
+                )
+                for s in first.slices
+            ]
         )
-        outcome.usage = client.usage
-        return outcome
-    outcome.triage = triage.results
+    else:
+        try:
+            triage = run_triage(static, first.slices, client, settings, ctx.cache, language)
+        except BudgetExceeded:
+            outcome.notices.append(
+                Notice(code="analysis_budget", params={"cost": f"{client.usage.cost_usd:.3f}"})
+            )
+            outcome.usage = client.usage
+            return outcome
+        outcome.triage = triage.results
     outcome.notices.extend(triage.notices)
     tracer.log(
         {"type": "stage", "stage": "triage", "data": [r.model_dump() for r in triage.results]}
     )
 
-    second = route_after_triage(static, triage.results, settings, rules.probability)
+    if settings.router.flat:
+        second = AfterTriage(
+            escalate=True,
+            reasons=["flat_control_group"],
+            focus=triage.results,
+            reachability_tasks=possibly_reachable(static),
+        )
+    else:
+        second = route_after_triage(static, triage.results, settings, rules.probability)
     outcome.route["after_triage"] = {"escalate": second.escalate, "reasons": second.reasons}
     tracer.log({"type": "stage", "stage": "router2", "data": outcome.route["after_triage"]})
 
@@ -165,7 +192,10 @@ def run_engine(
                 result.verdict.verifier_notes.append(
                     Notice(code="listing_not_consulted", level="info")
                 )
-            verdict = run_verifier(result.verdict, static, settings, client, language)
+            if settings.llm.verifier_enabled:
+                verdict = run_verifier(result.verdict, static, settings, client, language)
+            else:
+                verdict = result.verdict  # ablation: unverified verdict
             outcome.reachability = result.reachability
         else:
             if result is not None and result.stopped_reason and not result.refused:

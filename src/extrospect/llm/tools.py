@@ -534,7 +534,12 @@ class ToolBox:
         self.listing_consulted = True
         if self.listing is None:
             listing = None
-            if self.static.ref.is_valid_id and self.ctx.settings.network.fetch_listing:
+            knowledge = self.ctx.settings.knowledge
+            if (
+                knowledge.listing
+                and self.static.ref.is_valid_id
+                and self.ctx.settings.network.fetch_listing
+            ):
                 try:
                     listing = get_listing(self.static.ref.id, self.ctx)
                 except Exception:
@@ -549,12 +554,19 @@ class ToolBox:
     def tool_retrieve_similar_malware(self, code: str, k: int = 5) -> dict[str, Any]:
         from extrospect.knowledge.intel import search_intel
 
+        if not self.ctx.settings.knowledge.intel:
+            return {
+                "matches": [],
+                "note": "malware intel (RAG-B) is disabled in this configuration",
+            }
         hits = search_intel(code, self.ctx, k=max(1, min(int(k or 5), 10)))
         return {"matches": hits, "note": "similarity is lexical/semantic resemblance, not proof"}
 
     def tool_retrieve_advisory(self, cve: str) -> dict[str, Any]:
         from extrospect.knowledge.advisory import get_advisory
 
+        if not self.ctx.settings.knowledge.advisories:
+            return {"cve": cve, "error": "advisories (RAG-C) are disabled in this configuration"}
         advisory = get_advisory(cve, self.ctx)
         if advisory is None:
             return {"cve": cve, "error": "advisory not found"}

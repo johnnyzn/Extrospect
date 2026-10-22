@@ -78,6 +78,8 @@ class LlmConfig(_Section):
     refusal_fallback_model: str | None = None
     # Store full prompts/responses in traces so agent trajectories can be replayed.
     trace_full_content: bool = True
+    # Ablation switch: run the Verifier on investigator verdicts.
+    verifier_enabled: bool = True
     pricing: dict[str, ModelPrice] = Field(
         default_factory=lambda: {
             # Fallback prices (USD / MTok) if litellm's price map lacks a model.
@@ -109,6 +111,8 @@ class RouterConfig(_Section):
     escalate_suspicion_at: float = 0.6
     escalate_capability_unclear_at: float = 0.7
     knn_escalate_similarity: float = 0.92
+    # Control group for the ablation study: no triage, the investigator sees the top slices.
+    flat: bool = False
 
 
 class FuseConfig(_Section):
@@ -176,6 +180,10 @@ class KnowledgeConfig(_Section):
     listing_ttl_days: int = 7
     intel_top_k: int = 5
     use_builtin_intel: bool = True
+    # Ablation switches for the three knowledge bases.
+    listing: bool = True  # RAG-A
+    intel: bool = True  # RAG-B
+    advisories: bool = True  # RAG-C
 
 
 class PathsConfig(_Section):

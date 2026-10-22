@@ -1,0 +1,8 @@
+# Hand-written fixture extensions (tests/fixtures/extensions). Used by CI as a zero-token smoke test.
+{"id": "benign_word_counter", "name": "Word Counter", "label": "benign", "subset": "benign", "family": "fixture-benign-1", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/benign_word_counter"}
+{"id": "benign_translator", "name": "Lingvo Translate", "label": "benign", "subset": "benign_hard", "family": "fixture-benign-2", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/benign_translator"}
+{"id": "benign_legacy_jquery", "name": "Legacy Notes", "label": "benign", "subset": "benign", "family": "fixture-benign-3", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/benign_legacy_jquery"}
+{"id": "mal_cookie_exfil", "name": "Dark Mode Pro", "label": "malicious", "subset": "malicious", "family": "fixture-cookie-stealer", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/mal_cookie_exfil"}
+{"id": "mal_search_hijack", "name": "Quick Search Tab", "label": "malicious", "subset": "malicious", "family": "fixture-search-hijacker", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/mal_search_hijack"}
+{"id": "mal_remote_config", "name": "PDF Converter Plus", "label": "malicious", "subset": "malicious", "family": "fixture-remote-config", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/mal_remote_config"}
+{"id": "inj_prompt_injection", "name": "Shopping Helper", "label": "malicious", "subset": "injection", "family": "fixture-credential-stealer", "split": "test", "source": "fixture", "path": "../../tests/fixtures/extensions/inj_prompt_injection"}

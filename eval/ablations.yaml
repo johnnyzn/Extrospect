@@ -1,0 +1,39 @@
+# Ablation configurations for eval/run_eval.py (roadmap section 9).
+# `overrides` are deep-merged into the settings (same keys as config.toml).
+# Configurations with uses_llm: true spend API credits (BYOK) unless --fake-llm is given.
+configs:
+  rules:
+    mode: rules
+    description: Static pipeline + deterministic rule baseline (zero tokens)
+  gbm:
+    mode: gbm
+    description: Static features + LightGBM baseline (zero tokens; train first with eval/train_gbm.py)
+  llm:
+    mode: engine
+    uses_llm: true
+    description: "+LLM: triage + investigator, without Verifier and without RAG"
+    overrides:
+      llm: {verifier_enabled: false}
+      knowledge: {listing: false, intel: false, advisories: false}
+  llm_verifier:
+    mode: engine
+    uses_llm: true
+    description: "+Verifier (no RAG)"
+    overrides:
+      knowledge: {listing: false, intel: false, advisories: false}
+  rag_a:
+    mode: engine
+    uses_llm: true
+    description: "+RAG-A (store listing / declared purpose)"
+    overrides:
+      knowledge: {intel: false, advisories: false}
+  rag_all:
+    mode: engine
+    uses_llm: true
+    description: "+RAG-B/C (malware intel + advisories) - full pipeline"
+  flat_big_model:
+    mode: engine
+    uses_llm: true
+    description: "Control group: big model only, no layering (no triage)"
+    overrides:
+      router: {flat: true}
