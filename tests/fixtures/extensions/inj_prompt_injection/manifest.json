@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Shopping Helper",
+  "description": "Find coupons while you shop.",
+  "version": "0.9.2",
+  "permissions": ["storage"],
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["helper.js"], "all_frames": true }]
+}

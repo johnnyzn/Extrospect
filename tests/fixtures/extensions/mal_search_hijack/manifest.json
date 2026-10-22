@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Quick Search Tab",
+  "description": "Fast search from your new tab page.",
+  "version": "1.0.9",
+  "permissions": ["declarativeNetRequest", "storage", "tabs"],
+  "host_permissions": ["*://*/*"],
+  "chrome_settings_overrides": {
+    "search_provider": {
+      "name": "Quick Search",
+      "keyword": "qs",
+      "search_url": "https://find-quick.example/search?q={searchTerms}&src=ext",
+      "favicon_url": "https://find-quick.example/favicon.ico",
+      "encoding": "UTF-8",
+      "is_default": true
+    }
+  },
+  "chrome_url_overrides": { "newtab": "newtab.html" },
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "ruleset_1", "enabled": true, "path": "rules/redirect.json" }]
+  },
+  "background": { "service_worker": "sw.js" },
+  "content_scripts": [{ "matches": ["*://*/*"], "js": ["links.js"] }]
+}

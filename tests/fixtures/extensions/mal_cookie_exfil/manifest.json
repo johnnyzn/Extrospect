@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Dark Mode Pro",
+  "description": "Beautiful dark mode for every website.",
+  "version": "2.0.3",
+  "permissions": ["cookies", "storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["darkmode.js"], "css": ["darkmode.css"], "all_frames": true, "run_at": "document_start" }
+  ]
+}

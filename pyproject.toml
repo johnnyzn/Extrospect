@@ -1,0 +1,123 @@
+[project]
+name = "extrospect"
+version = "0.1.0"
+description = "Local browser-extension risk analysis engine with code evidence, exposed as a CLI and an MCP server."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "johnnyzn" }]
+keywords = ["browser-extension", "chrome", "security", "malware", "mcp", "llm", "static-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Natural Language :: English",
+    "Natural Language :: Chinese (Simplified)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+dependencies = [
+    "pydantic>=2.7",
+    "typer>=0.12",
+    "rich>=13.7",
+    "httpx>=0.27",
+    "platformdirs>=4.2",
+    # 0.26.0 has a use-after-free on temporary Point objects; 0.25.x is verified.
+    "tree-sitter>=0.25,<0.26",
+    "tree-sitter-javascript>=0.25",
+    "jsbeautifier>=1.15",
+    "regex>=2024.5.15",
+    "tldextract>=5.1",
+    "mcp>=1.9",
+]
+
+[project.optional-dependencies]
+# Engine mode (BYOK): layered LLM pipeline through litellm.
+llm = ["litellm>=1.60"]
+# Embedded vector store for the RAG knowledge bases (a pure-Python fallback exists).
+rag = ["lancedb>=0.13", "numpy>=1.26"]
+# Gradient-boosting baseline used in the evaluation.
+ml = ["lightgbm>=4.3", "numpy>=1.26", "scikit-learn>=1.4"]
+# Evaluation harness.
+eval = ["pyyaml>=6.0"]
+all = ["extrospect[llm,rag,ml,eval]"]
+
+[project.scripts]
+extrospect = "extrospect.cli:main"
+extrospect-mcp = "extrospect_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/johnnyzn/Extrospect"
+Issues = "https://github.com/johnnyzn/Extrospect/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/extrospect", "src/extrospect_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "eval/", "docs/", "README.md", "README.zh-CN.md", "pyproject.toml"]
+
+# --------------------------------------------------------------------------- tools
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "eval"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "C4", "PIE", "PT"]
+ignore = [
+    "E501",    # long lines are handled by the formatter; data tables may exceed
+    "RUF001",  # ambiguous unicode: intentional in i18n / prompt-injection patterns
+    "RUF002",
+    "RUF003",
+    "B008",    # typer uses function calls in defaults by design
+    "SIM108",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "PT011", "PT018"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+packages = ["extrospect", "extrospect_mcp"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "network: test needs network access (skipped unless EXTROSPECT_TEST_NETWORK=1)",
+    "node: test needs optional Node CLI tools (webcrack / prettier / retire)",
+]
+filterwarnings = ["ignore::DeprecationWarning:litellm.*"]
+
+[tool.coverage.run]
+source = ["extrospect", "extrospect_mcp"]
+branch = true

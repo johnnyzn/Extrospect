@@ -1,0 +1,4 @@
+{
+  "appName": { "message": "Word Counter", "description": "Extension name" },
+  "appDesc": { "message": "Counts the words on the current page." }
+}

@@ -1,0 +1,8 @@
+{
+  "manifest_version": 2,
+  "name": "Legacy Notes",
+  "description": "Keep quick notes in a popup.",
+  "version": "0.3.0",
+  "permissions": ["storage"],
+  "browser_action": { "default_popup": "popup.html" }
+}

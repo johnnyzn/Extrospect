@@ -1,0 +1,11 @@
+{
+  "manifest_version": 2,
+  "name": "PDF Converter Plus",
+  "description": "Convert web pages to PDF with one click.",
+  "version": "4.1.0",
+  "permissions": ["tabs", "storage", "<all_urls>", "webRequest", "webRequestBlocking"],
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://cfg.pdfconv-plus.example; object-src 'self'",
+  "background": { "scripts": ["bg.js"], "persistent": true },
+  "browser_action": { "default_popup": "popup.html" },
+  "update_url": "https://updates.pdfconv-plus.example/crx/update.xml"
+}

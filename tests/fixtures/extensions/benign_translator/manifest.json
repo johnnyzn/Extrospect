@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Lingvo Translate",
+  "description": "Translate the selected text on any page with the Lingvo Translate service.",
+  "version": "3.4.1",
+  "homepage_url": "https://lingvo-translate.example",
+  "permissions": ["storage", "contextMenus"],
+  "host_permissions": ["https://api.lingvo-translate.example/*"],
+  "background": { "service_worker": "service_worker.js" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "css": ["bubble.css"], "run_at": "document_idle" }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["bubble.css", "logo.svg"], "matches": ["<all_urls>"] }
+  ]
+}

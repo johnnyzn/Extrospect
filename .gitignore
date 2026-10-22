@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+# Internal development docs — NEVER commit.
+# Roadmaps, planning notes, progress logs and manual test checklists live in
+# /internal/ and stay on the developer's machine only.
+# ---------------------------------------------------------------------------
+/internal/
+*.internal.md
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-eggs/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node helpers (optional tooling installed per-project)
+node_modules/
+.tools/
+
+# Evaluation artifacts: only dataset manifests are committed, never samples
+eval/samples/
+eval/runs/
+eval/.cache/
+*.crx
+!tests/fixtures/**/*.crx
+
+# Local runtime data
+.extrospect/
+traces/
+*.sqlite
+*.sqlite3
+*.db
+*.lance/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*

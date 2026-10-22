@@ -1,0 +1,4 @@
+{
+  "appName": { "message": "字数统计" },
+  "appDesc": { "message": "统计当前页面的字数。" }
+}

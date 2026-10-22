@@ -1,0 +1,3 @@
+{
+  "_comment": "sha256 -> name@version of popular library builds. Regenerate with scripts/build_lib_hashes.py."
+}
