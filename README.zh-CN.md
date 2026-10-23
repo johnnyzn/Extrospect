@@ -94,12 +94,17 @@ RDAP 域名查询。`--offline` 会关闭全部网络访问。Engine 模式下�
 uv run python eval/fetch_samples.py --dataset eval/datasets/seed.jsonl --label benign
 uv run python eval/run_eval.py --dataset eval/datasets/seed.jsonl --configs rules,gbm
 uv run python eval/run_eval.py --dataset eval/datasets/seed.jsonl --configs all --yes   # 会花 API 费用
+uv run python eval/run_host_eval.py --model claude-sonnet-5-5 --yes   # 通过 Claude Code 评测 Host 模式
 ```
+
+在真实 Chrome 商店扩展上的首轮结果见 [docs/eval_real_world.md](docs/eval_real_world.md)：
+Host 模式下 43 个热门及深度集成的良性扩展零误报；只看静态分时，大多数密码管理器和广告拦截器会被
+误判为高风险。可靠的恶意样本仍然缺乏。
 
 ## 开发
 
 ```bash
-uv run pytest          # 约 160 个测试，离线、零 token（LLM 调用使用假后端）
+uv run pytest          # 约 170 个测试，离线、零 token（LLM 调用使用假后端）
 uv run ruff check src tests eval && uv run mypy
 ```
 

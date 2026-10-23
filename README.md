@@ -104,12 +104,18 @@ configurations and the scripts that produce [docs/eval_results.md](docs/eval_res
 uv run python eval/fetch_samples.py --dataset eval/datasets/seed.jsonl --label benign
 uv run python eval/run_eval.py --dataset eval/datasets/seed.jsonl --configs rules,gbm
 uv run python eval/run_eval.py --dataset eval/datasets/seed.jsonl --configs all --yes   # spends credits
+uv run python eval/run_host_eval.py --model claude-sonnet-5-5 --yes   # Host mode via Claude Code
 ```
+
+First results on real Chrome Web Store extensions are in
+[docs/eval_real_world.md](docs/eval_real_world.md): in Host mode no false positive on 43
+popular and deep-integration benign extensions, while the static score alone flags most
+password managers and ad blockers. Reliable malicious samples are still missing.
 
 ## Development
 
 ```bash
-uv run pytest          # ~160 tests, offline, zero tokens (LLM calls use fake backends)
+uv run pytest          # ~170 tests, offline, zero tokens (LLM calls use fake backends)
 uv run ruff check src tests eval && uv run mypy
 ```
 
