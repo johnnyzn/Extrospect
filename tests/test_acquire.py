@@ -106,6 +106,23 @@ def test_zip_bomb_limits(tmp_path: Path) -> None:
         extract_zip(big, tmp_path / "d2", max_files=1)
 
 
+def test_zip_bomb_ratio_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from extrospect.acquire import unpack
+
+    def deflated(data: bytes) -> bytes:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("filters.txt", data)
+        return buffer.getvalue()
+
+    monkeypatch.setattr(unpack, "BOMB_MIN_BYTES", 100_000)
+    with pytest.raises(UnpackError, match="compression ratio"):
+        extract_zip(deflated(b"0" * 1_000_000), tmp_path / "d3")  # ~1000x
+    # Ordinary compression (text / filter lists) is fine.
+    lines = b"".join(b"||ads%d.example^\n" % i for i in range(60_000))
+    assert extract_zip(deflated(lines), tmp_path / "d4") == 1
+
+
 def test_symlinks_in_archives_are_skipped(tmp_path: Path) -> None:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:

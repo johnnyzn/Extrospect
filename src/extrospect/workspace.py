@@ -94,9 +94,8 @@ class Workspace:
 
     def store_strings(self, strings: dict[str, str], flagged: set[str]) -> None:
         payload = {"strings": strings, "flagged": sorted(flagged)}
-        (self.root / "strings.json").write_text(
-            json.dumps(payload, ensure_ascii=False), encoding="utf-8"
-        )
+        # ASCII escapes keep lone surrogates (decoded "\ud83d"-style JS escapes) lossless.
+        (self.root / "strings.json").write_text(json.dumps(payload), encoding="utf-8")
 
     def load_strings(self) -> tuple[dict[str, str], set[str]]:
         path = self.root / "strings.json"

@@ -139,7 +139,7 @@ class FuseConfig(_Section):
 
 
 class StaticConfig(_Section):
-    max_unpack_bytes: int = 200 * 1024 * 1024
+    max_unpack_bytes: int = 1024 * 1024 * 1024
     max_unpack_files: int = 20_000
     max_parse_bytes: int = 6 * 1024 * 1024  # larger JS files are not parsed
     slice_max_lines: int = 150

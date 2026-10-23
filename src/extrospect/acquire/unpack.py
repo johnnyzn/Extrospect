@@ -20,8 +20,12 @@ from extrospect.util import PathEscapeError, safe_join
 
 CRX_MAGIC = b"Cr24"
 ZIP_MAGIC = b"PK\x03\x04"
-DEFAULT_MAX_BYTES = 200 * 1024 * 1024
+# Real extensions reach several hundred MB unpacked (ad-block filter lists, WASM models).
+DEFAULT_MAX_BYTES = 1024 * 1024 * 1024
 DEFAULT_MAX_FILES = 20_000
+# Zip-bomb guard: a large member that expands far beyond its compressed size.
+BOMB_MIN_BYTES = 64 * 1024 * 1024
+BOMB_RATIO = 200
 
 
 class UnpackError(ValueError):
@@ -146,11 +150,17 @@ def extract_zip(
             if count > max_files:
                 raise UnpackError(f"archive has more than {max_files} files")
             target.parent.mkdir(parents=True, exist_ok=True)
+            written = 0
             with archive.open(info) as src, target.open("wb") as dst:
                 while chunk := src.read(1 << 16):
                     total += len(chunk)
+                    written += len(chunk)
                     if total > max_bytes:
                         raise UnpackError(f"archive expands beyond {max_bytes} bytes")
+                    if written > BOMB_MIN_BYTES and written > BOMB_RATIO * max(
+                        info.compress_size, 1
+                    ):
+                        raise UnpackError(f"suspicious compression ratio in {name}")
                     dst.write(chunk)
     return count
 
