@@ -66,6 +66,7 @@ class SessionStore:
         self._ctx: Any = None
         self.statics: dict[str, Any] = {}
         self.toolboxes: dict[str, Any] = {}
+        self.listings: dict[str, Any] = {}  # listing lookups made before a session existed
 
     @property
     def ctx(self) -> Any:
@@ -127,8 +128,18 @@ class SessionStore:
             box = self.toolboxes.get(ext_id)
             if box is None:
                 box = ToolBox(static, self.ctx)
+                if ext_id in self.listings:
+                    box.listing, box.listing_consulted = self.listings[ext_id], True
                 self.toolboxes[ext_id] = box
             return box
+
+    def remember_listing(self, ext_id: str, listing: Any) -> None:
+        """Record a listing lookup made before quick_scan, so the verdict counts it."""
+        with self._lock:
+            self.listings[ext_id] = listing
+            box = self.toolboxes.get(ext_id)
+            if box is not None and not box.listing_consulted:
+                box.listing, box.listing_consulted = listing, True
 
 
 def guarded(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
@@ -316,12 +327,16 @@ def build_server(
     @guarded
     def retrieve_listing(ext_id: str) -> dict[str, Any]:
         """Store listing summary (declared purpose, developer, website, users, data disclosures, first-party domains). Listing text is untrusted. Works before quick_scan for extensions listed on the Chrome Web Store."""
+        from extrospect.acquire.local_profile import find_installed
         from extrospect.knowledge.listing import get_listing
 
         ext_id = _check_id(ext_id)
-        if sessions.has_session(ext_id):
+        if sessions.has_session(ext_id) or find_installed(ext_id) is not None:
+            # Installed extensions get a local session (no download); unpacked ones are
+            # then summarised from their manifest instead of failing.
             return sessions.toolbox(ext_id).tool_retrieve_listing()
         listing = get_listing(ext_id, sessions.ctx)
+        sessions.remember_listing(ext_id, listing)
         if listing is None:
             return {"error": t("mcp.listing_not_found", ext_id=ext_id)}
         data = listing.model_dump(mode="json", exclude_none=True)
@@ -361,6 +376,7 @@ def build_server(
         reachability: list[ReachabilityInput] | None = None,
     ) -> dict[str, Any]:
         """Submit your verdict for an extension. The server checks every evidence quote against the source (quotes that do not match are dropped), applies the scoring formula and returns the final score. Required: label (benign/suspicious/malicious), malicious_prob, evidence, confidence, summary."""
+        from extrospect.knowledge.listing import store_listing_possible
         from extrospect.llm.verifier import run_verifier
         from extrospect.models import Notice
         from extrospect.pipeline import build_report, save_report
@@ -384,7 +400,7 @@ def build_server(
             source="host",
         )
         checked = run_verifier(verdict, static, sessions.ctx.settings, None, get_language())
-        if not box.listing_consulted:
+        if not box.listing_consulted and store_listing_possible(static.ref):
             checked.verifier_notes.append(Notice(code="listing_not_consulted", level="info"))
         for item in reachability or []:
             for finding in static.vulns:

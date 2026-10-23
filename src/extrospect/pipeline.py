@@ -134,13 +134,24 @@ def resolve_target(
         installed = find_installed(ext_id)
         if installed is not None and installed.ref.path is not None:
             return installed.ref, installed.ref.path
-    if not allow_download:
-        raise TargetError(f"{ext_id} is not installed locally and downloads are disabled")
-    result = download_crx(ext_id, ctx.settings, ctx.http)
-    dest = ctx.settings.paths.cache_dir / "unpacked" / result.sha256[:20]
+    if allow_download:
+        result = download_crx(ext_id, ctx.settings, ctx.http)
+        crx_path, digest = result.path, result.sha256
+    else:
+        # A copy downloaded earlier (e.g. before an MCP server restart) needs no new download.
+        downloads = ctx.settings.paths.downloads_dir
+        cached = (
+            sorted(downloads.glob(f"{ext_id}_*.crx"), key=lambda p: p.stat().st_mtime)
+            if downloads.is_dir()
+            else []
+        )
+        if not cached:
+            raise TargetError(f"{ext_id} is not installed locally and downloads are disabled")
+        crx_path, digest = cached[-1], sha256_file(cached[-1])
+    dest = ctx.settings.paths.cache_dir / "unpacked" / digest[:20]
     if not (dest / "manifest.json").is_file():
         unpack_file(
-            result.path,
+            crx_path,
             dest,
             max_bytes=ctx.settings.static.max_unpack_bytes,
             max_files=ctx.settings.static.max_unpack_files,

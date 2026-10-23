@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from extrospect.baseline.rules import rule_score
+from extrospect.knowledge.listing import store_listing_possible
 from extrospect.llm.client import BudgetExceeded, LlmBackend, LlmCallError, LLMClient
 from extrospect.llm.investigator import investigate
 from extrospect.llm.router import (
@@ -188,7 +189,7 @@ def run_engine(
         if result is not None and result.refused:
             outcome.notices.append(Notice(code="llm_refusal", params={"stage": "investigator"}))
         if result is not None and result.verdict is not None:
-            if not toolbox.listing_consulted:
+            if not toolbox.listing_consulted and store_listing_possible(static.ref):
                 result.verdict.verifier_notes.append(
                     Notice(code="listing_not_consulted", level="info")
                 )

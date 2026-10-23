@@ -360,11 +360,126 @@ def test_mcp_listing_without_scan(mcp_server: Any) -> None:
     assert found["name"] == "Lingvo Translate" and found["first_party_domains"] == [
         "lingvo-translate.example"
     ]
-    missing = call(mcp_server, "retrieve_listing", {"ext_id": unlisted})
-    assert "error" in missing and unlisted in missing["error"]
-    # A scanned unpacked extension falls back to its manifest and says so.
+    # An installed extension missing from the store falls back to its manifest and says so.
+    fallback = call(mcp_server, "retrieve_listing", {"ext_id": unlisted})
+    assert fallback["source"] == "manifest" and "not found" in fallback["store_status"]
+    unknown = "e" * 32  # neither installed nor listed
+    missing = call(mcp_server, "retrieve_listing", {"ext_id": unknown})
+    assert "error" in missing and unknown in missing["error"]
     scanned = "c" * 32
     call(mcp_server, "quick_scan", {"ext_id": scanned})
     manifest_only = call(mcp_server, "retrieve_listing", {"ext_id": scanned})
     assert manifest_only["source"] == "manifest" and "store_status" in manifest_only
     assert manifest_only["name"] == "Shopping Helper"
+
+
+TRANSLATOR_EVIDENCE = {
+    "claim": "translation endpoint",
+    "file": "service_worker.js",
+    "lines": [1, 1],
+    "quote": 'const API = "https://api.lingvo-translate.example/v1/translate";',
+}
+
+
+def benign_verdict(ext_id: str) -> dict[str, Any]:
+    return {
+        "ext_id": ext_id,
+        "label": "benign",
+        "malicious_prob": 0.05,
+        "confidence": 0.8,
+        "summary": "translator",
+        "purpose_consistent": True,
+        "evidence": [TRANSLATOR_EVIDENCE],
+    }
+
+
+def test_store_listing_possible(tmp_path: Path) -> None:
+    from extrospect.knowledge.listing import store_listing_possible
+    from extrospect.models import ExtensionRef
+    from extrospect.static.manifest import id_from_path
+
+    folder = tmp_path / "dev-build"
+    folder.mkdir()
+    path_id = id_from_path(folder)
+    assert not store_listing_possible(ExtensionRef(id=path_id, source="local", path=folder))
+    # An id from the manifest "key" (or a store install) may well have a listing.
+    assert store_listing_possible(ExtensionRef(id="a" * 32, source="local", path=folder))
+    assert store_listing_possible(ExtensionRef(id=path_id, source="webstore", path=folder))
+
+
+def test_mcp_unpacked_extension_has_no_listing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fixtures_dir: Path, settings
+) -> None:
+    import shutil
+
+    from extrospect.static.manifest import id_from_path
+    from extrospect_mcp.server import build_server
+
+    unpacked = tmp_path / "dev" / "translator"
+    shutil.copytree(fixtures_dir / "benign_translator", unpacked)
+    ext_id = id_from_path(unpacked)
+    root = tmp_path / "chromium"
+    (root / "Default").mkdir(parents=True)
+    (root / "Local State").write_text("{}", encoding="utf-8")
+    (root / "Default" / "Secure Preferences").write_text(
+        json.dumps({"extensions": {"settings": {ext_id: {"location": 4, "path": str(unpacked)}}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("EXTROSPECT_BROWSER_ROOTS", f"chromium={root}")
+    server = build_server(
+        {
+            "paths": {
+                "data_dir": str(settings.paths.data_dir),
+                "cache_dir": str(settings.paths.cache_dir),
+            }
+        }
+    )
+    ctx = server._extrospect_sessions.ctx
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(404)
+
+    ctx.settings.network.offline = False
+    ctx.http = HttpClient(ctx.settings.network, transport=httpx.MockTransport(handler))
+    # Asked before quick_scan: answered from the manifest, without a store request.
+    listing = call(server, "retrieve_listing", {"ext_id": ext_id})
+    assert listing["name"] == "Lingvo Translate" and "no store listing" in listing["store_status"]
+    assert not any("chromewebstore" in url for url in requested)
+    verdict = call(server, "submit_verdict", benign_verdict(ext_id))
+    assert verdict["verdict"] == "benign" and len(verdict["verified_evidence"]) == 1
+    assert not any("store listing" in note for note in verdict["verifier_notes"])
+
+
+def test_mcp_early_listing_and_session_recovery(mcp_server: Any, fixtures_dir: Path) -> None:
+    from test_acquire import make_crx3
+
+    sessions = mcp_server._extrospect_sessions
+    ctx = sessions.ctx
+    ext = "f" * 32  # a store extension that is not installed
+    source = fixtures_dir / "benign_translator"
+    files = {
+        p.relative_to(source).as_posix(): p.read_bytes() for p in source.rglob("*") if p.is_file()
+    }
+    downloads = ctx.settings.paths.downloads_dir
+    downloads.mkdir(parents=True, exist_ok=True)
+    # Downloaded by an earlier server process (e.g. before the client restarted it).
+    (downloads / f"{ext}_0123456789ab.crx").write_bytes(make_crx3(files, bytes([0x55] * 16)))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if ext in str(request.url):
+            return httpx.Response(200, text=LISTING_HTML)
+        return httpx.Response(404)
+
+    ctx.settings.network.offline = False
+    ctx.http = HttpClient(ctx.settings.network, transport=httpx.MockTransport(handler))
+    listing = call(mcp_server, "retrieve_listing", {"ext_id": ext})  # before any session
+    assert listing["name"] == "Lingvo Translate"
+    # Without a session, tools re-create it from the earlier download (no new download).
+    slices = call(mcp_server, "get_slices", {"ext_id": ext})
+    assert "error" not in slices and slices["slices"]
+    verdict = call(mcp_server, "submit_verdict", benign_verdict(ext))
+    assert len(verdict["verified_evidence"]) == 1
+    # The listing read before the session existed still counts as consulted.
+    assert not any("store listing" in note for note in verdict["verifier_notes"])

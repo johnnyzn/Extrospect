@@ -16,7 +16,8 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from extrospect.knowledge.domains import first_party_domains
-from extrospect.models import EXTENSION_ID_RE, ListingInfo, utcnow
+from extrospect.models import EXTENSION_ID_RE, ExtensionRef, ListingInfo, utcnow
+from extrospect.static.manifest import id_from_path
 from extrospect.util import one_line
 
 if TYPE_CHECKING:
@@ -123,6 +124,14 @@ def parse_listing_html(page: str, ext_id: str) -> ListingInfo:
         first_party_domains([info.website, info.privacy_policy_url], [developer_email])
     )
     return info
+
+
+def store_listing_possible(ref: ExtensionRef) -> bool:
+    """False when the id is the hash of a local folder path (an unpacked extension whose
+    manifest has no ``key``): no store listing can exist under such an id."""
+    if ref.source == "webstore" or ref.path is None:
+        return True
+    return ref.id != id_from_path(ref.path)
 
 
 def listing_from_manifest(static: StaticResult) -> ListingInfo:
@@ -251,4 +260,5 @@ __all__ = [
     "get_listing",
     "listing_from_manifest",
     "parse_listing_html",
+    "store_listing_possible",
 ]
