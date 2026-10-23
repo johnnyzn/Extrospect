@@ -37,15 +37,16 @@ rule signals fire at least as often on large legitimate extensions as on the lis
 (`link_rewrite` 79% of benign vs 64% of listed, `time_bomb` 58% vs 30%,
 `exfiltration_pattern` 35% vs 34%).
 
-**Host mode** (`eval/run_host_eval.py`, Claude Sonnet 5.5 driving the MCP server through
+**Host mode** (`eval/run_host_eval.py`, a Claude model driving the MCP server through
 Claude Code, one fresh session per extension): 59 samples (16 listed as malicious, all
-43 benign) plus the 7 fixtures.
+43 benign) plus the 7 fixtures, with Claude Sonnet 5.5 and with Claude Haiku 4.5.
 
 | Scores | n | Precision | Recall | FPR | Hard-benign FPR | AUC |
 |---|---|---|---|---|---|---|
 | static (quick_scan), same 59 | 59 | 25.0% | 43.8% | 48.8% | 69.6% | 0.475 |
-| host (final verdict) | 59 | 100.0% | 6.2% | **0.0%** | **0.0%** | 0.971 |
-| host, fixtures (4 malicious incl. prompt injection, 3 benign) | 7 | 100.0% | 100.0% | 0.0% | 0.0% | 1.000 |
+| host, Sonnet 5.5 | 59 | 100.0% | 6.2% | **0.0%** | **0.0%** | 0.971 |
+| host, Haiku 4.5 | 59 | 72.7% | 50.0% | 7.0% | 13.0% | 0.895 |
+| host, fixtures (4 malicious incl. prompt injection, 3 benign), either model | 7 | 100.0% | 100.0% | 0.0% | 0.0% | 1.000 |
 
 - Every one of the 43 benign extensions ended benign or low (highest final score 34),
   including the twelve the static score rated 87-97 (1Password, Ghostery, Keeper,
@@ -56,8 +57,15 @@ Claude Code, one fresh session per extension): 59 samples (16 listed as maliciou
   tools (one with an undisclosed data-collection issue). The listed samples still rank
   above the benign ones (AUC 0.971), but this does not measure recall.
 - All fixtures, including the prompt-injection one, were judged correctly by Sonnet 5.5
-  as well (earlier manual tests used Opus 5.5).
-- Cost at list prices: $0.26 per extension on average, about 10 tool turns and 36 s.
+  and Haiku 4.5 (earlier manual tests used Opus 5.5).
+- Haiku 4.5's three false positives (1Password 95, Privacy Badger 89, MetaMask 76) all
+  carry a *benign* verdict: its evidence quotes did not match the source and were
+  removed, so the one-way rule kept the static score and flagged the report for human
+  review. The safeguard works as designed, but "benign verdict, critical score" is
+  confusing; weaker models need help producing verbatim quotes (or a retry prompt). Its
+  higher "recall" on the listed ids comes from the same rule, not from findings.
+- Cost at list prices: Sonnet 5.5 $0.26 per extension (about 10 tool turns, 36 s);
+  Haiku 4.5 $0.08 (9 turns, 52 s).
 
 ## Bugs found and fixed
 
@@ -74,7 +82,10 @@ Claude Code, one fresh session per extension): 59 samples (16 listed as maliciou
 2. **Static calibration.** On real extensions the static score is an attack-surface
    measure, not a malice estimate; the rule weights and level labels need recalibrating
    before `extrospect scan` results are shown as "high" or "critical" on their own.
-3. **Other models and clients.** Only Claude Code with Sonnet 5.5 and Opus 5.5 so far.
+3. **Weaker models.** Haiku 4.5 often fails the verbatim-quote check; the
+   `submit_verdict` result should ask the model to resubmit with exact quotes, and the
+   report should present a kept static score as "needs review" rather than "critical".
+4. **Other clients.** Only Claude Code so far (Claude Desktop, Cursor untested).
 
 ## Reproduce
 
