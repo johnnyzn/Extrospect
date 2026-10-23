@@ -347,7 +347,7 @@ def report(ws: Workspace, threshold: int) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    work = args.work_dir or ROOT / "eval/runs" / f"host-{args.model or 'default'}"
+    work = (args.work_dir or ROOT / "eval/runs" / f"host-{args.model or 'default'}").resolve()
     ws = Workspace(work, args.lang)
     if args.report:
         print(report(ws, args.threshold))
