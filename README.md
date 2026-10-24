@@ -77,7 +77,9 @@ Risk = 100 x A^0.5 x E^0.7  (+ hard rules)  ->  benign / low / medium / high / c
 
 The LLM never sets the score: it produces a verdict and evidence, the Verifier drops
 evidence whose quote is not in the file, and the formula does the rest. Every report
-shows the breakdown. Details: [docs/scoring.md](docs/scoring.md).
+shows the breakdown. Without a model verdict the score is shown as **attack surface**,
+not as a risk level, and a verdict that cannot be verified is shown as **needs review**.
+Details: [docs/scoring.md](docs/scoring.md).
 
 ## Privacy
 

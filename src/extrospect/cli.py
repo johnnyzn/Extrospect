@@ -10,7 +10,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.console import Console
@@ -34,6 +34,9 @@ from extrospect.i18n import (
     set_language,
     t,
 )
+
+if TYPE_CHECKING:
+    from extrospect.models import Report
 
 
 def _early_language() -> str:
@@ -102,10 +105,10 @@ def _fail(message: str, code: int = 1) -> None:
     raise typer.Exit(code)
 
 
-def _level_text(level: str) -> Text:
-    from extrospect.report import LEVEL_COLORS, level_label
+def _level_text(report: Report) -> Text:
+    from extrospect.report import display_level, display_style
 
-    return Text(level_label(level), style=LEVEL_COLORS.get(level, ""))
+    return Text(display_level(report), style=display_style(report))
 
 
 @app.callback()
@@ -229,8 +232,9 @@ def _print_report_console(report: Any) -> None:
     header.append(
         f"{report.ref.id}  v{report.ref.version or report.manifest.version}\n", style="dim"
     )
-    header.append(t("cli.score_line", score=report.score) + "  ")
-    header.append_text(_level_text(report.level))
+    score_line = "cli.static_score_line" if report.verdict is None else "cli.score_line"
+    header.append(t(score_line, score=report.score) + "  ")
+    header.append_text(_level_text(report))
     b = report.breakdown
     header.append(
         f"\nA={b.A:.2f}  Ev={b.Ev:.2f}  Em={b.Em:.2f} ({t('em_source.' + b.em_source)})  E={b.E:.2f}",
@@ -356,7 +360,7 @@ def _scan_local(ctx: Any, fmt: str, output: Path | None, include_disabled: bool)
         top_kinds = ", ".join(list(report.sink_counts)[:3]) or "-"
         table.add_row(
             str(report.score),
-            _level_text(report.level),
+            _level_text(report),
             ext.name,
             ext.ref.id,
             ext.ref.version or "-",
@@ -421,7 +425,7 @@ def scan_cmd(
                     json.dumps([_summary(r) for r in reports], ensure_ascii=False, indent=2), output
                 )
             else:
-                table = Table()
+                table = Table(caption=t("cli.static_caption"))
                 for col in (
                     "col_score",
                     "col_level",
@@ -435,7 +439,7 @@ def scan_cmd(
                 for r in sorted(reports, key=lambda x: -x.score):
                     table.add_row(
                         str(r.score),
-                        _level_text(r.level),
+                        _level_text(r),
                         r.manifest.name,
                         r.ref.id,
                         f"{r.capability.score:.2f}",
@@ -525,6 +529,7 @@ def history_cmd(
     as_json: Annotated[bool, typer.Option("--json", help=t("cli.opt_json"))] = False,
 ) -> None:
     from extrospect.models import Report
+    from extrospect.report import assessment
 
     ctx = _context()
     try:
@@ -553,6 +558,7 @@ def history_cmd(
                     "name": r.manifest.name,
                     "score": r.score,
                     "level": r.level,
+                    "assessment": assessment(r),
                     "verdict": v.label if v else None,
                     "evidence_verified": sum(1 for e in v.evidence if e.verified) if v else 0,
                     "needs_human_review": v.needs_human_review if v else None,
@@ -586,7 +592,7 @@ def history_cmd(
             r.manifest.name,
             r.ref.id,
             str(r.score),
-            _level_text(r.level),
+            _level_text(r),
             verdict,
             evidence,
         )

@@ -253,6 +253,31 @@ def test_mcp_tools_end_to_end(mcp_server: Any) -> None:
     )
     assert verdict["verdict"] == "malicious" and len(verdict["verified_evidence"]) == 1
     assert verdict["score"] >= 80 and any("not found" in note for note in verdict["verifier_notes"])
+    assert scan["assessment"] == "static" and verdict["assessment"] == "verdict"
+    assert "action_required" not in verdict
+    # A benign verdict without purpose-consistency proof keeps the static score; the
+    # result says why and how to resubmit.
+    unproven = call(
+        mcp_server,
+        "submit_verdict",
+        {
+            "ext_id": ext,
+            "label": "benign",
+            "malicious_prob": 0.05,
+            "confidence": 0.9,
+            "summary": "coupon helper",
+            "evidence": [
+                {
+                    "claim": "store listing says coupons",
+                    "file": "Chrome Web Store listing",
+                    "lines": [1, 1],
+                    "quote": "Find coupons while you shop.",
+                }
+            ],
+        },
+    )
+    assert unproven["assessment"] == "review" and unproven["score"] >= 61
+    assert "purpose_consistent" in unproven["action_required"]
 
     async def resource() -> str:
         contents = await mcp_server.read_resource(f"extrospect://report/{ext}")

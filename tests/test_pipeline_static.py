@@ -67,6 +67,29 @@ def test_reports_render_in_two_languages(ctx, fixtures_dir: Path) -> None:
     assert Report.model_validate(data).score == report.score
 
 
+def test_static_scores_are_shown_as_attack_surface(ctx, fixtures_dir: Path) -> None:
+    from extrospect.models import Verdict
+    from extrospect.report import assessment, display_level, report_summary
+
+    report, _ = quick_scan(fixtures_dir / "mal_cookie_exfil", ctx)
+    assert report.level in {"high", "critical"} and assessment(report) == "static"
+    md = render_markdown(report, "en")
+    assert "attack surface" in display_level(report, "en")
+    assert "Static score (attack surface)" in md and "critical" not in md.splitlines()[0]
+    assert "攻击面" in render_markdown(report, "zh-CN").splitlines()[0]
+    assert report_summary(report, "en")["assessment"] == "static"
+    # A benign model verdict that could not lower the static prior needs review.
+    verdict = Verdict(label="benign", malicious_prob=0.05, confidence=0.9, summary="ok")
+    review = report.model_copy(update={"verdict": verdict})
+    review.breakdown = review.breakdown.model_copy(update={"one_way_kept_static": True})
+    assert assessment(review) == "review" and display_level(review, "en") == "needs review"
+    assert "could not be verified" in render_markdown(review, "en")
+    confirmed = report.model_copy(
+        update={"verdict": verdict.model_copy(update={"label": "malicious"})}
+    )
+    assert assessment(confirmed) == "verdict" and display_level(confirmed, "en") == report.level
+
+
 def test_workspace_formats_minified_and_extracts_inline(ctx, ext_copy, settings: Settings) -> None:
     ext = ext_copy("benign_word_counter")
     minified = (

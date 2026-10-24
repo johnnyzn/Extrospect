@@ -33,8 +33,54 @@ LEVEL_HEX = {
 }
 
 
+# Static-only scores rate attack surface, not malice: no alarm colours.
+SURFACE_COLORS = {
+    "benign": "green",
+    "low": "cyan",
+    "medium": "yellow",
+    "high": "yellow",
+    "critical": "bold yellow",
+}
+SURFACE_HEX = {"benign": "#1a7f37", "low": "#0969da"}
+REVIEW_HEX = "#9a6700"
+
+
 def level_label(level: str, lang: str | None = None) -> str:
     return t(f"level.{level}", lang)
+
+
+def assessment(report: Report) -> str:
+    """How to read the score: ``static`` (no model verdict - attack surface, not malice),
+    ``review`` (a model verdict could not lower a high static score) or ``verdict``."""
+    verdict = report.verdict
+    if verdict is None:
+        return "static"
+    if report.breakdown.one_way_kept_static and verdict.label != "malicious":
+        return "review"
+    return "verdict"
+
+
+def display_level(report: Report, lang: str | None = None) -> str:
+    kind = assessment(report)
+    if kind == "static":
+        return t(f"surface.{report.level}", lang)
+    if kind == "review":
+        return t("level.review", lang)
+    return level_label(report.level, lang)
+
+
+def display_style(report: Report) -> str:
+    kind = assessment(report)
+    if kind == "static":
+        return SURFACE_COLORS.get(report.level, "")
+    return "yellow" if kind == "review" else LEVEL_COLORS.get(report.level, "")
+
+
+def display_hex(report: Report) -> str:
+    kind = assessment(report)
+    if kind == "static":
+        return SURFACE_HEX.get(report.level, REVIEW_HEX)
+    return REVIEW_HEX if kind == "review" else LEVEL_HEX.get(report.level, "#59636e")
 
 
 def label_label(label: str, lang: str | None = None) -> str:
@@ -95,7 +141,8 @@ def render_markdown(
     L = lang or report.language
     m = report.manifest
     out: list[str] = []
-    level = level_label(report.level, L)
+    level = display_level(report, L)
+    kind = assessment(report)
     out.append(f"# {m.name} — {level} ({report.score}/100)")
     out.append("")
     out.append(
@@ -116,7 +163,8 @@ def render_markdown(
     # ---- summary
     out.append(f"## {t('report.summary', L)}")
     out.append("")
-    out.append(f"- {t('report.risk_score', L)}: **{report.score}/100** ({level})")
+    score_key = "report.static_score" if kind == "static" else "report.risk_score"
+    out.append(f"- {t(score_key, L)}: **{report.score}/100** ({level})")
     verdict = report.verdict
     if verdict is not None:
         out.append(
@@ -127,6 +175,8 @@ def render_markdown(
         )
         if verdict.summary:
             out.append(f"- {verdict.summary}")
+        if kind == "review":
+            out.append(f"- ⚠️ {t('report.review_note', L, label=label_label(verdict.label, L))}")
     else:
         out.append(f"- {t('report.static_only_note', L)}")
     out.append(f"- {t('report.capability', L)}: A = {report.breakdown.A:.2f}")
@@ -360,7 +410,8 @@ def report_summary(report: Report, lang: str | None = None) -> dict[str, Any]:
         "version": report.ref.version,
         "score": report.score,
         "level": report.level,
-        "level_label": level_label(report.level, L),
+        "assessment": assessment(report),
+        "level_label": display_level(report, L),
         "verdict": report.verdict.label if report.verdict else None,
         "breakdown": report.breakdown.model_dump(),
         "capability_flags": report.capability.flags,
@@ -420,7 +471,7 @@ def _table(headers: Iterable[str], rows: Iterable[Iterable[str]]) -> str:
 def render_html(report: Report, lang: str | None = None) -> str:
     L = lang or report.language
     m = report.manifest
-    level = level_label(report.level, L)
+    level = display_level(report, L)
     parts: list[str] = []
     parts.append(f"<h1>{_h(m.name)}</h1>")
     parts.append(
@@ -443,6 +494,9 @@ def render_html(report: Report, lang: str | None = None) -> str:
         )
         if verdict.summary:
             parts.append(f"<li>{_h(verdict.summary)}</li>")
+        if assessment(report) == "review":
+            note = t("report.review_note", L, label=label_label(verdict.label, L))
+            parts.append(f"<li>⚠️ {_h(note)}</li>")
     else:
         parts.append(f"<li>{_h(t('report.static_only_note', L))}</li>")
     if report.injection_attempts:
@@ -636,7 +690,7 @@ def render_html(report: Report, lang: str | None = None) -> str:
     return _HTML_TEMPLATE.format(
         lang=_h(L),
         title=_h(f"{m.name} — {level}"),
-        accent=LEVEL_HEX.get(report.level, "#59636e"),
+        accent=display_hex(report),
         body="\n".join(parts),
     )
 
@@ -664,7 +718,10 @@ def dumps(data: Any) -> str:
 
 __all__ = [
     "LEVEL_COLORS",
+    "assessment",
     "capability_lines",
+    "display_level",
+    "display_style",
     "dumps",
     "label_label",
     "level_label",

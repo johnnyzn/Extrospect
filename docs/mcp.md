@@ -64,5 +64,8 @@ Resource: `extrospect://report/{ext_id}` - the latest report (Markdown).
 * Code and listing texts are returned sanitised (comments removed, long strings elided)
   inside `<untrusted_code>` markers; text that addresses AI reviewers is redacted.
 * `submit_verdict` evidence must quote the code verbatim; invented quotes are dropped and a
-  `malicious` verdict without verifiable evidence is downgraded.
+  `malicious` verdict without verifiable evidence is downgraded. A benign verdict lowers a
+  high static score only with `purpose_consistent=true` and a verified quote; otherwise
+  the result is marked `needs review` and `action_required` tells the model how to
+  resubmit.
 * Nothing about your installed extensions is sent anywhere (see the README's privacy section).

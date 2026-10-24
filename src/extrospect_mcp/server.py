@@ -45,7 +45,10 @@ class EvidenceInput(BaseModel):
     claim: str = Field(description="What this code shows.")
     file: str = Field(description="File path as shown by get_slices / read_file.")
     lines: list[int] = Field(description="[start_line, end_line], absolute and inclusive.")
-    quote: str = Field(description="Code copied verbatim from those lines, without line numbers.")
+    quote: str = Field(
+        description="Code copied verbatim from those lines, without line numbers. Code only: "
+        "store-listing facts and descriptions are not evidence."
+    )
 
 
 class ReachabilityInput(BaseModel):
@@ -188,6 +191,11 @@ def scan_summary(report: Report, static: Any) -> dict[str, Any]:
         "description_untrusted": report.manifest.description[:300],
         "score": report.score,
         "level": report.level,
+        "assessment": "static",
+        "score_note": (
+            "Static score: attack surface (permissions and code patterns), not a verdict. "
+            "Large legitimate extensions often score high; investigate before judging."
+        ),
         "score_breakdown": report.breakdown.model_dump(exclude_none=True),
         "capability": {
             "score": report.capability.score,
@@ -375,12 +383,12 @@ def build_server(
         exfil_targets: list[str] | None = None,
         reachability: list[ReachabilityInput] | None = None,
     ) -> dict[str, Any]:
-        """Submit your verdict for an extension. The server checks every evidence quote against the source (quotes that do not match are dropped), applies the scoring formula and returns the final score. Required: label (benign/suspicious/malicious), malicious_prob, evidence, confidence, summary."""
+        """Submit your verdict for an extension. The server checks every evidence quote against the source (quotes that do not match are dropped), applies the scoring formula and returns the final score. Required: label (benign/suspicious/malicious), malicious_prob, evidence, confidence, summary. A benign or suspicious verdict can only lower a high static score when purpose_consistent=true (the risky behaviour serves the declared purpose) and at least one quote showing that purpose matches the code; otherwise the result is marked for human review."""
         from extrospect.knowledge.listing import store_listing_possible
         from extrospect.llm.verifier import run_verifier
         from extrospect.models import Notice
         from extrospect.pipeline import build_report, save_report
-        from extrospect.report import notice_text
+        from extrospect.report import assessment, notice_text
 
         ext_id = _check_id(ext_id)
         static = sessions.static(ext_id)
@@ -419,9 +427,10 @@ def build_server(
             notices=[Notice(code="host_verdict", level="info")],
         )
         save_report(report, sessions.ctx)
-        return {
+        result: dict[str, Any] = {
             "score": report.score,
             "level": report.level,
+            "assessment": assessment(report),
             "verdict": checked.label,
             "needs_human_review": checked.needs_human_review,
             "verified_evidence": [
@@ -431,6 +440,19 @@ def build_server(
             "score_breakdown": report.breakdown.model_dump(exclude_none=True),
             "report_uri": f"extrospect://report/{ext_id}",
         }
+        if result["assessment"] == "review":
+            reasons = []
+            if checked.purpose_consistent is not True:
+                reasons.append(t("mcp.reason_purpose_missing"))
+            if not any(e.verified for e in checked.evidence):
+                reasons.append(t("mcp.reason_no_verified_evidence"))
+            result["action_required"] = t(
+                "mcp.verdict_not_applied",
+                label=checked.label,
+                score=report.score,
+                reasons="; ".join(reasons) or t("mcp.reason_verifier"),
+            )
+        return result
 
     @server.tool(annotations=READ_ONLY_OPEN)
     @guarded

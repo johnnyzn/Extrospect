@@ -66,3 +66,18 @@ functions appear in the extension's own code.
 
 Every report shows `A`, `Ev`, `Em` (and its source), `E`, the raw formula value and any
 hard rule that applied.
+
+## How results are labelled
+
+The same score means different things depending on what produced it, so reports, the CLI
+and the MCP tools (`assessment` field) label it accordingly:
+
+| Assessment | When | Shown as |
+|---|---|---|
+| `static` | no model verdict (`scan`, `quick_scan`) | attack surface: minimal / small / moderate / large / very large |
+| `review` | a benign or suspicious verdict could not lower a high static score (one-way rule) | needs review |
+| `verdict` | a verdict that passed the Verifier | benign / low / medium / high / critical |
+
+On real extensions the static score measures attack surface, not malice: password
+managers and ad blockers routinely score 85-97 (see [eval_real_world.md](eval_real_world.md)),
+so a static score alone is never shown as a risk level.
