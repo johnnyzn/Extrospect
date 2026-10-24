@@ -54,6 +54,8 @@ extrospect-mcp = "extrospect_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/johnnyzn/Extrospect"
+Documentation = "https://github.com/johnnyzn/Extrospect/tree/main/docs"
+Changelog = "https://github.com/johnnyzn/Extrospect/blob/main/CHANGELOG.md"
 Issues = "https://github.com/johnnyzn/Extrospect/issues"
 
 [dependency-groups]
@@ -75,7 +77,8 @@ build-backend = "hatchling.build"
 packages = ["src/extrospect", "src/extrospect_mcp"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/", "tests/", "eval/", "docs/", "README.md", "README.zh-CN.md", "LICENSE", "NOTICE", "pyproject.toml"]
+include = ["src/", "tests/", "eval/", "docs/", "README.md", "README.zh-CN.md", "CHANGELOG.md", "SECURITY.md", "LICENSE", "NOTICE", "pyproject.toml"]
+exclude = ["eval/samples", "eval/runs", "eval/.cache"]
 
 # --------------------------------------------------------------------------- tools
 

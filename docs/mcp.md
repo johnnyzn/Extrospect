@@ -1,5 +1,7 @@
 # MCP server
 
+English · [中文](zh-CN/mcp.md)
+
 `extrospect-mcp` is a stdio MCP server. In **Host mode** the model of your MCP client
 (Claude Desktop, Claude Code, Cursor, ...) is the investigator: Extrospect provides
 deterministic tools and evidence, checks the verdict and computes the score. No extra API
@@ -7,12 +9,10 @@ cost - only `full_analyze` (Engine mode) uses an API key configured for Extrospe
 
 ## Client configuration
 
-Until Extrospect is published on PyPI, run it from your checkout with `uv`:
-
 **Claude Code**
 
 ```bash
-claude mcp add extrospect -- uv --directory /path/to/Extrospect run extrospect-mcp
+claude mcp add extrospect -- uvx --from extrospect extrospect-mcp
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`) and **Cursor** (`~/.cursor/mcp.json`):
@@ -21,14 +21,18 @@ claude mcp add extrospect -- uv --directory /path/to/Extrospect run extrospect-m
 {
   "mcpServers": {
     "extrospect": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/Extrospect", "run", "extrospect-mcp", "--lang", "en"]
+      "command": "uvx",
+      "args": ["--from", "extrospect", "extrospect-mcp", "--lang", "en"]
     }
   }
 }
 ```
 
-After publication the command becomes `uvx --from extrospect extrospect-mcp`.
+From a source checkout, use `uv --directory /path/to/Extrospect run extrospect-mcp` as the
+command instead. In Claude Code the prompt is available as
+`/mcp__extrospect__audit_my_extensions`. A capable model (Sonnet or Opus class) is
+recommended: smaller models more often fail the evidence check, and their results are
+then shown as *needs review*.
 
 Server options: `--lang <code>` (language of explanations and reports), `--offline` (no
 network), `--allow-download` (let `quick_scan` fetch extensions that are not installed).
@@ -40,7 +44,7 @@ For `full_analyze`, add the API key to the server environment, e.g.
 | Tool | Purpose |
 |---|---|
 | `list_installed_extensions` | Extensions in local browser profiles (id, name, version, browser, profile, enabled) |
-| `quick_scan(ext_id)` | Static analysis: score, capability flags, suspicious code, CVEs, remote hosts, slices to investigate |
+| `quick_scan(ext_id)` | Static analysis: score (`assessment: static` - attack surface, not a verdict), capability flags, suspicious code, CVEs, remote hosts, slices to investigate |
 | `get_slices(ext_id, top)` | The most dangerous code slices with gutter line numbers |
 | `read_file(ext_id, path, start_line, end_line)` | Up to 200 sanitised lines of a file |
 | `search_code(ext_id, pattern)` | Regex search (libraries excluded by default) |
@@ -50,7 +54,7 @@ For `full_analyze`, add the API key to the server environment, e.g.
 | `retrieve_listing(ext_id)` | Store listing: declared purpose, developer, website, users, data disclosures |
 | `retrieve_similar_malware(code)` | Known malicious techniques similar to a snippet |
 | `retrieve_advisory(cve)` | Advisory: summary, affected functions, exploitation conditions |
-| `submit_verdict(ext_id, ...)` | Verdict + evidence; quotes are verified against the source, the score is computed server-side |
+| `submit_verdict(ext_id, ...)` | Verdict + evidence; quotes are verified against the source, the score is computed server-side (`assessment: verdict` or `review`, with `action_required` when a resubmission is needed) |
 | `full_analyze(ext_id)` | Engine mode (layered LLM pipeline, BYOK) |
 
 Prompt: `audit_my_extensions(language)` - the investigation procedure.

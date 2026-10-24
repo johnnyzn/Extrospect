@@ -1,5 +1,7 @@
 # Architecture
 
+English · [中文](zh-CN/architecture.md)
+
 ```
                  ┌──────────────────────────────────────────────┐
  AI client ────▶ │ extrospect-mcp (MCPServer, stdio)            │

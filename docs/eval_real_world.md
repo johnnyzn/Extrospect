@@ -1,5 +1,7 @@
 # Real-world evaluation (2026-10-23)
 
+English · [中文](zh-CN/eval_real_world.md)
+
 First evaluation on extensions downloaded from the Chrome Web Store, complementing the
 fixture smoke test. Pipeline `0.1.0+p1`, decision threshold: score >= 61 (high or
 critical) counts as "flagged".
@@ -59,11 +61,11 @@ Claude Code, one fresh session per extension): 59 samples (16 listed as maliciou
 - All fixtures, including the prompt-injection one, were judged correctly by Sonnet 5.5
   and Haiku 4.5 (earlier manual tests used Opus 5.5).
 - Haiku 4.5's three false positives (1Password 95, Privacy Badger 89, MetaMask 76) all
-  carry a *benign* verdict: its evidence quotes did not match the source and were
-  removed, so the one-way rule kept the static score and flagged the report for human
-  review. The safeguard works as designed, but "benign verdict, critical score" is
-  confusing; weaker models need help producing verbatim quotes (or a retry prompt). Its
-  higher "recall" on the listed ids comes from the same rule, not from findings.
+  carry a *benign* verdict: it did not set `purpose_consistent=true` and part of its
+  evidence was store-listing text rather than code, so the one-way rule kept the static
+  score and flagged the report for human review. The safeguard works as designed, but
+  the result read as "benign verdict, critical score". Its higher "recall" on the listed
+  ids comes from the same rule, not from findings.
 - Cost at list prices: Sonnet 5.5 $0.26 per extension (about 10 tool turns, 36 s);
   Haiku 4.5 $0.08 (9 turns, 52 s).
 
@@ -80,11 +82,12 @@ Claude Code, one fresh session per extension): 59 samples (16 listed as maliciou
    archives, imported with `fetch_samples.py --import-dir`) or recently reported
    extensions confirmed by manual review.
 2. **Static calibration.** On real extensions the static score is an attack-surface
-   measure, not a malice estimate; the rule weights and level labels need recalibrating
-   before `extrospect scan` results are shown as "high" or "critical" on their own.
-3. **Weaker models.** Haiku 4.5 often fails the verbatim-quote check; the
-   `submit_verdict` result should ask the model to resubmit with exact quotes, and the
-   report should present a kept static score as "needs review" rather than "critical".
+   measure, not a malice estimate. Since this evaluation, static-only scores are shown as
+   *attack surface* instead of risk levels; recalibrating the rule weights needs reliable
+   malicious samples (item 1).
+3. **Weaker models.** Since this evaluation, `submit_verdict` states the
+   purpose-consistency rule up front and returns `action_required` when a verdict cannot
+   be applied, and such results are shown as *needs review*. Not yet re-measured.
 4. **Other clients.** Only Claude Code so far (Claude Desktop, Cursor untested).
 
 ## Reproduce

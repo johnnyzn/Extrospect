@@ -1,5 +1,7 @@
 # Scoring
 
+English · [中文](zh-CN/scoring.md)
+
 The final score is computed by a fixed formula from three dimensions. The LLM never
 sets the score directly; it contributes a verdict whose evidence is verified first.
 
