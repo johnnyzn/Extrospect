@@ -144,6 +144,17 @@ def test_js_unescape_and_member_chain() -> None:
     )
 
 
+def test_sanitize_keeps_line_numbers_of_crlf_sources() -> None:
+    text = 'const a = 1; // note\r\nconst b = "x";\r\n/* block\r\n comment */\r\nsend(a, b);\r\n'
+    sanitized = sanitize_source(parse_js("crlf.js", text))
+    original_lines = text.split("\n")
+    clean_lines = sanitized.text.split("\n")
+    assert len(clean_lines) == len(original_lines)
+    assert clean_lines[1].rstrip("\r") == 'const b = "x";'
+    assert clean_lines[4].rstrip("\r") == "send(a, b);"
+    assert "note" not in sanitized.text and "comment" not in sanitized.text
+
+
 def test_sanitize_preserves_lines_and_hides_injections(fixtures_dir: Path) -> None:
     text = read_text(fixtures_dir / "inj_prompt_injection" / "helper.js")
     parsed = parse_js("helper.js", text)

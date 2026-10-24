@@ -1,0 +1,2 @@
+# Same line endings on every platform: fixtures are compared byte for byte.
+* text=auto eol=lf

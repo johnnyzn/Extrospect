@@ -47,6 +47,9 @@ def test_normalize_language(tag: str | None, expected: str | None) -> None:
 
 
 def test_resolve_language_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+    # LC_ALL / LC_MESSAGES outrank LANG (CI runners on macOS set LC_ALL).
+    for var in ("LC_ALL", "LC_MESSAGES", "LANGUAGE", "EXTROSPECT_LANG"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("LANG", "ja_JP.UTF-8")
     assert resolve_language() == "ja"
     monkeypatch.setenv("EXTROSPECT_LANG", "zh-CN")
