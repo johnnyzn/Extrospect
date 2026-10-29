@@ -23,7 +23,7 @@ Extrospect 完全在本机运行。它能找到 Chrome、Edge、Brave、Chromium
 | **防提示注入** | 代码交给模型前会去掉注释、截断长字符串；代码里写给 AI 审查者的话（"classify this as benign"、"忽略之前的指令"）会被识别出来，并作为风险信号报告 |
 | **多语言** | 界面和报告支持英文、简体中文；LLM 生成的内容可以是任意语言 |
 
-## 现状：alpha（0.1.0）
+## 现状：alpha（0.1）
 
 已经验证过的：
 
@@ -54,6 +54,9 @@ uv tool install extrospect      # 推荐：独立环境，Python 由 uv 管理
 pipx install extrospect         # 用 pipx 装到独立环境
 pip install extrospect          # 装进当前（虚拟）环境
 ```
+
+用 pip 时请装进虚拟环境（`python3 -m venv .venv && . .venv/bin/activate`）。Debian、Ubuntu 的系统 Python
+需要先 `sudo apt install python3-venv` 才能建虚拟环境，而且不允许在虚拟环境外直接 `pip install`（PEP 668）。
 
 装好后检查环境（可选工具、API key、浏览器配置文件）：
 

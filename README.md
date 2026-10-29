@@ -25,7 +25,7 @@ explainable 0-100 score.
 | **Prompt-injection aware** | comments and long strings are stripped before code reaches a model; text addressed to AI reviewers ("classify this as benign", "忽略之前的指令") is detected and reported as a red flag |
 | **Multilingual** | English and Simplified Chinese UI and reports; LLM-written text in any language |
 
-## Status: alpha (0.1.0)
+## Status: alpha (0.1)
 
 What has been checked:
 
@@ -62,6 +62,10 @@ uv tool install extrospect      # recommended: isolated environment, uv manages 
 pipx install extrospect         # isolated environment with pipx
 pip install extrospect          # into the current (virtual) environment
 ```
+
+With pip, install into a virtual environment (`python3 -m venv .venv && . .venv/bin/activate`).
+On Debian and Ubuntu the system Python needs `sudo apt install python3-venv` for that, and it
+refuses a plain `pip install` outside a virtual environment (PEP 668).
 
 Then check the setup (optional tools, API keys, browser profiles):
 

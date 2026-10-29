@@ -52,8 +52,20 @@ def _early_language() -> str:
 
 set_language(_early_language())
 
-console = Console()
-err_console = Console(stderr=True)
+# Markup is off: extension names, code snippets, LLM-written text and error messages are
+# untrusted and must print verbatim ("input[type=password]", "pip install 'extrospect[llm]'").
+# Styles are applied with Text objects instead.
+console = Console(markup=False)
+err_console = Console(stderr=True, markup=False)
+
+
+def _styled(*parts: tuple[str, str]) -> Text:
+    """Text from (content, style) pairs; content is never parsed as markup."""
+    text = Text()
+    for content, style in parts:
+        text.append(content, style=style or None)
+    return text
+
 
 app = typer.Typer(
     name="extrospect",
@@ -101,7 +113,7 @@ def _context(overrides: dict[str, Any] | None = None) -> Any:
 
 
 def _fail(message: str, code: int = 1) -> None:
-    err_console.print(f"[bold red]✗[/] {message}")
+    err_console.print(_styled(("✗ ", "bold red"), (message, "")))
     raise typer.Exit(code)
 
 
@@ -253,15 +265,26 @@ def _print_report_console(report: Any) -> None:
 
     caps = capability_lines(report)
     if caps:
-        console.print(f"[bold]{t('report.capabilities')}[/]")
+        console.print(_styled((t("report.capabilities"), "bold")))
         for line in caps[:12]:
             console.print(f"  • {line}", highlight=False)
     if report.verdict is not None and report.verdict.evidence:
-        console.print(f"[bold]{t('report.evidence')}[/]")
+        console.print(_styled((t("report.evidence"), "bold")))
         for ev in report.verdict.evidence[:8]:
-            mark = "[green]✔[/]" if ev.verified else "[red]✘[/]" if ev.verified is False else "•"
+            mark = (
+                ("✔", "green")
+                if ev.verified
+                else ("✘", "red")
+                if ev.verified is False
+                else ("•", "")
+            )
             console.print(
-                f"  {mark} {ev.claim} [dim]{ev.file}:{ev.lines[0]}-{ev.lines[1]}[/]",
+                _styled(
+                    ("  ", ""),
+                    mark,
+                    (f" {ev.claim} ", ""),
+                    (f"{ev.file}:{ev.lines[0]}-{ev.lines[1]}", "dim"),
+                ),
                 highlight=False,
             )
     if report.top_sinks:
@@ -286,23 +309,25 @@ def _print_report_console(report: Any) -> None:
         console.print(table)
     if report.injection_attempts:
         console.print(
-            f"[bold red]⚠ {t('report.injection_detected', count=len(report.injection_attempts))}[/]"
+            _styled(
+                (
+                    f"⚠ {t('report.injection_detected', count=len(report.injection_attempts))}",
+                    "bold red",
+                )
+            )
         )
     for notice in report.notices:
         style = "yellow" if notice.level == "warning" else "dim"
-        console.print(f"[{style}]• {notice_text(notice)}[/]", highlight=False)
+        console.print(_styled((f"• {notice_text(notice)}", style)), highlight=False)
     if report.mode != "static":
-        console.print(
-            "[dim]"
-            + t(
-                "report.cost_line",
-                cost=f"{report.cost_usd:.4f}",
-                input=report.tokens.get("input", 0),
-                output=report.tokens.get("output", 0),
-                calls=report.tokens.get("calls", 0),
-            )
-            + "[/]"
+        cost_line = t(
+            "report.cost_line",
+            cost=f"{report.cost_usd:.4f}",
+            input=report.tokens.get("input", 0),
+            output=report.tokens.get("output", 0),
+            calls=report.tokens.get("calls", 0),
         )
+        console.print(_styled((cost_line, "dim")))
 
 
 def _scan_local(ctx: Any, fmt: str, output: Path | None, include_disabled: bool) -> None:
@@ -331,7 +356,7 @@ def _scan_local(ctx: Any, fmt: str, output: Path | None, include_disabled: bool)
                     language=ctx.language,
                 )
             except Exception as exc:  # keep scanning the others
-                err_console.print(f"[red]✗[/] {ext.name} ({ext.ref.id}): {exc}")
+                err_console.print(_styled(("✗ ", "red"), (f"{ext.name} ({ext.ref.id}): {exc}", "")))
                 continue
             report = build_report(static, ctx)
             save_report(report, ctx)
@@ -414,7 +439,7 @@ def scan_cmd(
                         allow_download=not no_download,
                     )
             except (TargetError, FileNotFoundError, ValueError, RuntimeError) as exc:
-                err_console.print(f"[red]✗[/] {target}: {exc}")
+                err_console.print(_styled(("✗ ", "red"), (f"{target}: {exc}", "")))
                 continue
             reports.append(report)
             if len(all_targets) == 1:
@@ -640,8 +665,8 @@ def doctor_cmd() -> None:
     table.add_column(t("cli.col_detail"))
 
     def row(name: str, ok: bool | None, detail: str) -> None:
-        mark = "[green]✔[/]" if ok else "[yellow]–[/]" if ok is None else "[red]✘[/]"
-        table.add_row(name, mark, detail)
+        mark = ("✔", "green") if ok else ("–", "yellow") if ok is None else ("✘", "red")
+        table.add_row(name, _styled(mark), detail)
 
     row("Python", True, sys.version.split()[0])
     row("extrospect", True, f"{__version__} / pipeline {PIPELINE_VERSION}")

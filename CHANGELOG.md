@@ -1,5 +1,26 @@
 # Changelog / 更新日志
 
+## 0.1.1 - 2026-10-29
+
+Found by installing 0.1.0 from PyPI with pip and testing every command. / 用 pip 从 PyPI 安装 0.1.0 并逐项测试时发现。
+
+**English**
+
+- CLI: text in square brackets was swallowed by the terminal renderer (rich markup). Code
+  snippets lost parts such as `[type=password]`, and install hints showed
+  `pip install 'extrospect'` instead of `'extrospect[llm]'`. Markup is now off for all
+  output, so extension names, code and model-written text print verbatim and can no
+  longer inject terminal styling.
+- README: pip users install into a virtual environment; Debian/Ubuntu system Python needs
+  `python3-venv` (PEP 668).
+
+**中文**
+
+- 命令行：方括号里的文字会被终端渲染库（rich 的标记语法）吞掉。代码片段会丢失 `[type=password]` 这类内容，
+  安装提示显示成 `pip install 'extrospect'` 而不是 `'extrospect[llm]'`。现在所有输出都关闭了标记解析，扩展名、
+  代码和模型写的文字都会原样显示，也无法再借此伪造终端样式。
+- README：pip 用户请装进虚拟环境；Debian、Ubuntu 的系统 Python 需要先安装 `python3-venv`（PEP 668）。
+
 ## 0.1.0 - 2026-10-23 (alpha)
 
 First public release. / 首次公开发布。

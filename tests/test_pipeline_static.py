@@ -239,6 +239,21 @@ def test_cli_misc_commands(cli) -> None:
     assert result.exit_code != 0
 
 
+def test_cli_prints_untrusted_text_verbatim(cli, fixtures_dir: Path) -> None:
+    from extrospect import cli as cli_module
+
+    runner, app = cli
+    result = runner.invoke(
+        app, ["scan", str(fixtures_dir / "inj_prompt_injection")], env={"COLUMNS": "250"}
+    )
+    assert result.exit_code == 0, result.output
+    # Brackets in code are not rich markup: the snippet must not lose "[type=password]".
+    assert 'querySelector("input[type=password]")' in result.output
+    with cli_module.err_console.capture() as captured:
+        cli_module.err_console.print("pip install 'extrospect[llm]' [/]")
+    assert "extrospect[llm]' [/]" in captured.get()
+
+
 def test_cli_report_from_cache(cli, fixtures_dir: Path) -> None:
     runner, app = cli
     runner.invoke(app, ["scan", str(fixtures_dir / "mal_cookie_exfil"), "-f", "json"])
