@@ -3,19 +3,25 @@
 English · [中文](zh-CN/mcp.md)
 
 `extrospect-mcp` is a stdio MCP server. In **Host mode** the model of your MCP client
-(Claude Desktop, Claude Code, Cursor, ...) is the investigator: Extrospect provides
+(Claude Code, Codex, Cursor, VS Code, ...) is the investigator: Extrospect provides
 deterministic tools and evidence, checks the verdict and computes the score. No extra API
 cost - only `full_analyze` (Engine mode) uses an API key configured for Extrospect.
 
 ## Client configuration
 
-**Claude Code**
+Extrospect is a local **stdio** server, so it works with any MCP client that can start a
+local process. The command is always `uvx --from extrospect extrospect-mcp` (add options
+such as `--lang zh-CN` at the end).
 
-```bash
-claude mcp add extrospect -- uvx --from extrospect extrospect-mcp
-```
+| Client | How to add Extrospect |
+|---|---|
+| Claude Code | `claude mcp add extrospect -- uvx --from extrospect extrospect-mcp` |
+| Codex (CLI, IDE extension, Codex tab of the ChatGPT desktop app) | `codex mcp add extrospect -- uvx --from extrospect extrospect-mcp`, or `~/.codex/config.toml` (below) |
+| Claude Desktop, Cursor, Windsurf, Gemini CLI | the `mcpServers` JSON below, in `claude_desktop_config.json`, `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json` or `~/.gemini/settings.json` |
+| VS Code (Copilot agent mode) | `.vscode/mcp.json` with the `servers` JSON below |
+| ChatGPT chat (web, mobile, desktop) | **not supported**: it only connects to remote HTTPS servers and cannot start local processes. Use Codex instead; do not expose Extrospect through a tunnel - it reads your local browser profiles |
 
-**Claude Desktop** (`claude_desktop_config.json`) and **Cursor** (`~/.cursor/mcp.json`):
+`mcpServers` (Claude Desktop, Cursor, Windsurf, Gemini CLI):
 
 ```json
 {
@@ -28,11 +34,43 @@ claude mcp add extrospect -- uvx --from extrospect extrospect-mcp
 }
 ```
 
-From a source checkout, use `uv --directory /path/to/Extrospect run extrospect-mcp` as the
-command instead. In Claude Code the prompt is available as
-`/mcp__extrospect__audit_my_extensions`. A capable model (Sonnet or Opus class) is
-recommended: smaller models more often fail the evidence check, and their results are
-then shown as *needs review*.
+VS Code (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "extrospect": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "extrospect", "extrospect-mcp", "--lang", "en"]
+    }
+  }
+}
+```
+
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.extrospect]
+command = "uvx"
+args = ["--from", "extrospect", "extrospect-mcp", "--lang", "en"]
+```
+
+Installed with `pip` or `pipx` instead of uv? Replace `uvx --from extrospect extrospect-mcp`
+with `extrospect-mcp` everywhere above (inside a virtual environment, its full path, e.g.
+`/path/to/.venv/bin/extrospect-mcp`). If a desktop app reports that the command cannot be
+found (GUI apps often do not see your shell `PATH`), use the absolute path printed by
+`which uvx` or `which extrospect-mcp`. From a source checkout, use
+`uv --directory /path/to/Extrospect run extrospect-mcp` as the command instead.
+
+**Models.** The tools work with any model that supports tool calling (Claude, GPT,
+Gemini, ...), but so far Extrospect has only been evaluated with Claude Opus 5.5, Sonnet
+5.5 and Haiku 4.5 ([evaluation](eval_real_world.md)). A capable model is recommended.
+Evidence checks and scoring run on the server, so a weaker model cannot lower a score
+without verified evidence - its results are shown as *needs review* instead. Clients
+differ in which MCP features they support: where the `audit_my_extensions` prompt is not
+available (in Claude Code it is `/mcp__extrospect__audit_my_extensions`), simply ask
+the assistant to check your browser extensions.
 
 Server options: `--lang <code>` (language of explanations and reports), `--offline` (no
 network), `--allow-download` (let `quick_scan` fetch extensions that are not installed).

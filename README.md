@@ -19,7 +19,7 @@ explainable 0-100 score.
 
 | | |
 |---|---|
-| **Host mode (MCP)** | an MCP server: the model in Claude Code / Claude Desktop / Cursor becomes the investigator, Extrospect provides the tools, verifies the evidence and computes the score - no extra API cost |
+| **Host mode (MCP)** | an MCP server: the model in your AI client (Claude Code, Codex, Cursor, VS Code, ...) becomes the investigator, Extrospect provides the tools, verifies the evidence and computes the score - no extra API cost |
 | **Static pipeline (zero tokens)** | permission tiers and combinations, CSP, attack surface, known-vulnerable libraries (retire.js + EPSS), deobfuscation, tree-sitter detection of data sources, exfiltration channels, dynamic code and hijacking, data-flow patterns, code slicing |
 | **Engine mode (BYOK, experimental)** | a layered LLM pipeline - small-model triage, a larger-model investigator agent with tools, and a verifier that checks every evidence quote against the source |
 | **Prompt-injection aware** | comments and long strings are stripped before code reaches a model; text addressed to AI reviewers ("classify this as benign", "忽略之前的指令") is detected and reported as a red flag |
@@ -55,15 +55,23 @@ Reports of false positives or missed detections are very welcome in the
 
 ## Install
 
-Requires Python 3.11+.
+Requires Python 3.11+. Pick one:
 
 ```bash
-uv tool install extrospect        # or: pipx install extrospect  /  pip install extrospect
-extrospect doctor                 # check optional tools, API keys, browser profiles
+uv tool install extrospect      # recommended: isolated environment, uv manages Python
+pipx install extrospect         # isolated environment with pipx
+pip install extrospect          # into the current (virtual) environment
 ```
 
-Extras: `extrospect[llm]` (Engine mode), `extrospect[rag]` (LanceDB vector store),
-`extrospect[all]`. Optional Node.js helpers are used automatically when present:
+Then check the setup (optional tools, API keys, browser profiles):
+
+```bash
+extrospect doctor
+```
+
+Extras work the same way with all three, e.g. `pip install "extrospect[llm]"`:
+`llm` (Engine mode), `rag` (LanceDB vector store), `all`. Optional Node.js helpers are
+used automatically when present:
 `npm i -g webcrack prettier retire` (bundle unpacking/deobfuscation, formatting, the
 official retire.js scanner); without them Extrospect falls back to built-in equivalents.
 
@@ -81,10 +89,18 @@ uv run extrospect doctor          # prefix the commands below with `uv run`
 claude mcp add extrospect -- uvx --from extrospect extrospect-mcp
 ```
 
+Installed with `pip` or `pipx` instead of uv? Use the installed command:
+`claude mcp add extrospect -- extrospect-mcp` (inside a virtual environment, give its
+full path, e.g. `.venv/bin/extrospect-mcp`).
+
 Then ask *"Check my browser extensions"* or run the `/mcp__extrospect__audit_my_extensions`
-prompt. Claude Desktop and Cursor configuration, tools and the security model:
+prompt. It works with any MCP client that can start local servers - Claude Code, Claude
+Desktop, Codex (CLI, IDE, the Codex tab of the ChatGPT desktop app), Cursor, VS Code,
+Windsurf, Gemini CLI - but not with ChatGPT's chat, which only connects to remote servers.
+Setup for each client, tools and the security model:
 [docs/mcp.md](https://github.com/johnnyzn/Extrospect/blob/main/docs/mcp.md).
-A capable model (Sonnet or Opus class) is recommended.
+So far it has been evaluated with Claude models; a capable model (Sonnet or Opus class)
+is recommended.
 
 ## Command line
 

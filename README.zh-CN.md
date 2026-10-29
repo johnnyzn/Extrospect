@@ -17,7 +17,7 @@ Extrospect 完全在本机运行。它能找到 Chrome、Edge、Brave、Chromium
 
 | | |
 |---|---|
-| **Host 模式（MCP）** | MCP server：Claude Code / Claude Desktop / Cursor 里的模型充当调查员，Extrospect 提供工具、核对证据并计算分数，不额外花 API 费用 |
+| **Host 模式（MCP）** | MCP server：你的 AI 客户端（Claude Code、Codex、Cursor、VS Code 等）里的模型充当调查员，Extrospect 提供工具、核对证据并计算分数，不额外花 API 费用 |
 | **静态管线（零 token）** | 权限分级与组合、CSP、攻击面、已知漏洞库（retire.js + EPSS）、解混淆、基于 tree-sitter 的敏感数据来源 / 外传通道 / 动态代码 / 劫持行为识别、数据流模式、代码切片 |
 | **Engine 模式（BYOK，实验性）** | 分层 LLM 管线：小模型分诊、大模型带工具调查、Verifier 把每条证据引用和源码逐字核对 |
 | **防提示注入** | 代码交给模型前会去掉注释、截断长字符串；代码里写给 AI 审查者的话（"classify this as benign"、"忽略之前的指令"）会被识别出来，并作为风险信号报告 |
@@ -47,15 +47,22 @@ Extrospect 完全在本机运行。它能找到 Chrome、Edge、Brave、Chromium
 
 ## 安装
 
-需要 Python 3.11+。
+需要 Python 3.11+。三种方式任选一种：
 
 ```bash
-uv tool install extrospect        # 或者 pipx install extrospect / pip install extrospect
-extrospect doctor                 # 检查可选工具、API key、浏览器配置文件
+uv tool install extrospect      # 推荐：独立环境，Python 由 uv 管理
+pipx install extrospect         # 用 pipx 装到独立环境
+pip install extrospect          # 装进当前（虚拟）环境
 ```
 
-可选依赖：`extrospect[llm]`（Engine 模式）、`extrospect[rag]`（LanceDB 向量库）、`extrospect[all]`。
-可选的 Node.js 工具装了会自动使用：`npm i -g webcrack prettier retire`（拆包 / 解混淆、格式化、
+装好后检查环境（可选工具、API key、浏览器配置文件）：
+
+```bash
+extrospect doctor
+```
+
+三种方式都可以加可选依赖，例如 `pip install "extrospect[llm]"`：`llm`（Engine 模式）、`rag`（LanceDB 向量库）、
+`all`。可选的 Node.js 工具装了会自动使用：`npm i -g webcrack prettier retire`（拆包 / 解混淆、格式化、
 官方 retire.js 扫描器）；没装时使用内置的替代实现。
 
 从源码运行：
@@ -72,10 +79,15 @@ uv run extrospect doctor          # 下面的命令前面都加上 `uv run`
 claude mcp add extrospect -- uvx --from extrospect extrospect-mcp --lang zh-CN
 ```
 
+没装 uv、用的是 `pip` 或 `pipx`？命令直接写装好的 `extrospect-mcp`：
+`claude mcp add extrospect -- extrospect-mcp --lang zh-CN`（装在虚拟环境里时写完整路径，例如 `.venv/bin/extrospect-mcp`）。
+
 然后说"检查我的浏览器扩展"，或者运行 `/mcp__extrospect__audit_my_extensions` 这个 prompt。
-Claude Desktop、Cursor 的配置、工具列表和安全模型见
+任何能启动本地 server 的 MCP 客户端都能用：Claude Code、Claude Desktop、Codex（CLI、IDE 插件、ChatGPT 桌面版里的
+Codex 标签页）、Cursor、VS Code、Windsurf、Gemini CLI；ChatGPT 的聊天界面不行，它只能连接远程 server。
+各客户端的配置方法、工具列表和安全模型见
 [docs/zh-CN/mcp.md](https://github.com/johnnyzn/Extrospect/blob/main/docs/zh-CN/mcp.md)。
-建议使用能力较强的模型（Sonnet 或 Opus 级别）。
+目前只用 Claude 系列模型评测过，建议使用能力较强的模型（Sonnet 或 Opus 级别）。
 
 ## 命令行
 

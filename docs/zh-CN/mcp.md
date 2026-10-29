@@ -2,19 +2,24 @@
 
 [English](../mcp.md) · 中文
 
-`extrospect-mcp` 是一个 stdio 方式的 MCP server。在 **Host 模式**下，你的 MCP 客户端（Claude Desktop、
-Claude Code、Cursor 等）里的模型就是调查员：Extrospect 提供确定性的工具和证据，核对结论并计算分数。
+`extrospect-mcp` 是一个 stdio 方式的 MCP server。在 **Host 模式**下，你的 MCP 客户端（Claude Code、
+Codex、Cursor、VS Code 等）里的模型就是调查员：Extrospect 提供确定性的工具和证据，核对结论并计算分数。
 不额外产生 API 费用——只有 `full_analyze`（Engine 模式）会用到给 Extrospect 配置的 API key。
 
 ## 客户端配置
 
-**Claude Code**
+Extrospect 是一个本地 **stdio** server，只要 MCP 客户端能启动本机进程就能用。启动命令始终是
+`uvx --from extrospect extrospect-mcp`（`--lang zh-CN` 之类的参数加在最后）。
 
-```bash
-claude mcp add extrospect -- uvx --from extrospect extrospect-mcp --lang zh-CN
-```
+| 客户端 | 添加方法 |
+|---|---|
+| Claude Code | `claude mcp add extrospect -- uvx --from extrospect extrospect-mcp --lang zh-CN` |
+| Codex（CLI、IDE 插件、ChatGPT 桌面版里的 Codex 标签页） | `codex mcp add extrospect -- uvx --from extrospect extrospect-mcp --lang zh-CN`，或者写进 `~/.codex/config.toml`（见下文） |
+| Claude Desktop、Cursor、Windsurf、Gemini CLI | 把下面的 `mcpServers` JSON 写进 `claude_desktop_config.json`、`~/.cursor/mcp.json`、`~/.codeium/windsurf/mcp_config.json` 或 `~/.gemini/settings.json` |
+| VS Code（Copilot agent 模式） | 在 `.vscode/mcp.json` 里写下面的 `servers` JSON |
+| ChatGPT 聊天（网页、手机、桌面版） | **不支持**：它只能连接远程 HTTPS server，不能启动本机进程。请改用 Codex；也不要通过内网穿透把 Extrospect 暴露出去——它会读取你本机的浏览器配置文件 |
 
-**Claude Desktop**（`claude_desktop_config.json`）和 **Cursor**（`~/.cursor/mcp.json`）：
+`mcpServers`（Claude Desktop、Cursor、Windsurf、Gemini CLI）：
 
 ```json
 {
@@ -27,9 +32,38 @@ claude mcp add extrospect -- uvx --from extrospect extrospect-mcp --lang zh-CN
 }
 ```
 
-从源码运行时，把命令换成 `uv --directory /path/to/Extrospect run extrospect-mcp`。在 Claude Code 里，
-prompt 可以用 `/mcp__extrospect__audit_my_extensions` 调用。建议使用能力较强的模型（Sonnet 或 Opus 级别）：
-较小的模型更容易过不了证据核对，这时结果会显示为"需人工复核"。
+VS Code（`.vscode/mcp.json`）：
+
+```json
+{
+  "servers": {
+    "extrospect": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "extrospect", "extrospect-mcp", "--lang", "zh-CN"]
+    }
+  }
+}
+```
+
+Codex（`~/.codex/config.toml`）：
+
+```toml
+[mcp_servers.extrospect]
+command = "uvx"
+args = ["--from", "extrospect", "extrospect-mcp", "--lang", "zh-CN"]
+```
+
+没装 uv、用 `pip` 或 `pipx` 安装的话，把上面所有的 `uvx --from extrospect extrospect-mcp` 换成 `extrospect-mcp`
+（装在虚拟环境里时写完整路径，例如 `/path/to/.venv/bin/extrospect-mcp`）。如果桌面应用提示找不到命令（图形界面程序
+常常读不到终端里的 `PATH`），就改用 `which uvx` 或 `which extrospect-mcp` 输出的完整路径。
+从源码运行时，把命令换成 `uv --directory /path/to/Extrospect run extrospect-mcp`。
+
+**关于模型。** 这些工具适用于任何支持工具调用的模型（Claude、GPT、Gemini 等），但目前只用 Claude Opus 5.5、
+Sonnet 5.5、Haiku 4.5 做过评测（见[真实环境评测](eval_real_world.md)），建议使用能力较强的模型。证据核对和计分
+都在服务器端完成，较弱的模型拿不出核验通过的证据，就无法拉低分数，这时结果会显示为"需人工复核"。各客户端支持的
+MCP 功能不完全相同：用不了 `audit_my_extensions` 这个 prompt 时（在 Claude Code 里是
+`/mcp__extrospect__audit_my_extensions`），直接让助手"检查我的浏览器扩展"即可。
 
 服务器参数：`--lang <code>`（解释和报告的语言）、`--offline`（不联网）、`--allow-download`（允许
 `quick_scan` 下载本机没装的扩展）。使用 `full_analyze` 时，把 API key 加到服务器的环境变量里，例如
